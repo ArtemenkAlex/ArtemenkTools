@@ -1003,6 +1003,32 @@ var _rtListeners = {}; // collection → fn(items)
 // child_added стреляет при первой подписке на Firebase (~2-3 сек после загрузки)
 // pfInit() вызывается только через 5.5 сек — listener опаздывает!
 // Решение: регистрируем listener сразу, pfLoad() только дочитывает из _pfProfiles
+// Ранний listener для zrating — рейтинг зайцев синхронизируется между ПК
+_rtListeners['zrating'] = function(action, id, data) {
+  try {
+    var rating = {};
+    try { rating = JSON.parse(localStorage.getItem('zayacRating')||'{}'); } catch(e2) {}
+    if (action === 'add' && data && id) {
+      rating[id] = data;
+      localStorage.setItem('zayacRating', JSON.stringify(rating));
+      if (typeof AT_dbSet === 'function') AT_dbSet('zayacRating', JSON.stringify(rating)).catch(function(){});
+      var modal = document.getElementById('zRatingModal');
+      if (modal && modal.classList.contains('active')) {
+        if (typeof zRatingRedraw === 'function') try { zRatingRedraw(); } catch(e3) {}
+      }
+      console.log('[ZRATING] RT sync: received entry', id);
+    } else if (action === 'remove') {
+      delete rating[id];
+      localStorage.setItem('zayacRating', JSON.stringify(rating));
+      if (typeof AT_dbSet === 'function') AT_dbSet('zayacRating', JSON.stringify(rating)).catch(function(){});
+      var modal2 = document.getElementById('zRatingModal');
+      if (modal2 && modal2.classList.contains('active')) {
+        if (typeof zRatingRedraw === 'function') try { zRatingRedraw(); } catch(e3) {}
+      }
+    }
+  } catch(e) { console.warn('[ZRATING] RT error:', e); }
+};
+
 // Ранний listener для announce — срабатывает при child_added/changed из Firebase
 _rtListeners['announce'] = function(action, id, data) {
   if (action === 'remove') {
@@ -1290,9 +1316,8 @@ function initFirebase(){
           console.log('[AT_SYNC] ✅ Firebase подключён');
           if(!wasOnline) {
             _flushPending();
-            // Подписываемся на уведомления при первом подключении
-            if(typeof _atAnnounceFetchAndShow==='function' && !window._announceSubscribed){
-              window._announceSubscribed = true;
+            // Загружаем уведомление при подключении (всегда, не только первый раз)
+            if(typeof _atAnnounceFetchAndShow==='function'){
               try{ _atAnnounceFetchAndShow(); }catch(e){}
             }
             // Синхронизируем профили
@@ -1336,7 +1361,7 @@ function initFirebase(){
       // Подписываемся НАПРЯМУЮ на каждую коллекцию — без вложенных child_added
       // _pageLoadTs: записи старше него уже загружены из IDB/LS — не обновляем UI
       var _pageLoadTs = Date.now();
-      var RT_COLS = ['qr','trbx','filling','declaration','zayac','prev','boxes','tracking','profiles','timing_presets','announce'];
+      var RT_COLS = ['qr','trbx','filling','declaration','zayac','prev','boxes','tracking','profiles','timing_presets','announce','zrating'];
 
       function _rtHandleSnap(col, itemSnap, eventType){
         var val = itemSnap.val();
@@ -1371,7 +1396,7 @@ function initFirebase(){
           return;
         }
         // Для profiles, tracking, announce — всегда вызываем listener
-        var ALWAYS_SYNC = {profiles:1, tracking:1, timing_presets:1, announce:1};
+        var ALWAYS_SYNC = {profiles:1, tracking:1, timing_presets:1, announce:1, boxes:1, filling:1, zayac:1, prev:1};
         var isNew = val.ts && val.ts > _pageLoadTs;
         if(isNew || ALWAYS_SYNC[col]){
           try {
@@ -2556,6 +2581,11 @@ window.AT_importData = async function(file){
 </div>
 </div>
 <button onclick="trackingAdd()" style="padding:10px 20px;background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;white-space:nowrap">+ Добавить</button>
+<div id="trackingScopeToggle" style="display:flex;border:2px solid #ddd;border-radius:8px;overflow:hidden;flex-shrink:0">
+  <button id="tscope_profile" onclick="trackingScopeSet('profile')" title="Только в данном профиле" style="padding:8px 10px;background:#667eea;color:#fff;border:none;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">👤 Профиль</button>
+  <button id="tscope_pc" onclick="trackingScopeSet('pc')" title="На этом ПК (все профили)" style="padding:8px 10px;background:#fff;color:#555;border:none;cursor:pointer;font-size:12px;font-weight:600;border-left:1px solid #ddd;border-right:1px solid #ddd;white-space:nowrap">🖥️ На этом ПК</button>
+  <button id="tscope_all" onclick="trackingScopeSet('all')" title="Всем пользователям" style="padding:8px 10px;background:#fff;color:#555;border:none;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap">🌐 Все</button>
+</div>
 </div>
 </div>
 <div id="trackingStatus" style="display:none;padding:10px 14px;border-radius:8px;margin-top:10px;font-size:13px"></div>
@@ -2566,6 +2596,7 @@ window.AT_importData = async function(file){
 <th style="padding:10px 8px;text-align:left;font-weight:800;border-bottom:2px solid #ddd">ШК</th>
 <th style="padding:10px 8px;text-align:left;font-weight:800;border-bottom:2px solid #ddd">Добавил</th>
 <th style="padding:10px 8px;text-align:left;font-weight:800;border-bottom:2px solid #ddd">Комментарий</th>
+<th style="padding:10px 8px;text-align:left;font-weight:800;border-bottom:2px solid #ddd">Видимость</th>
 <th style="padding:10px 8px;text-align:left;font-weight:800;border-bottom:2px solid #ddd">Статус</th>
 <th style="padding:10px 8px;text-align:left;font-weight:800;border-bottom:2px solid #ddd">Последняя проверка</th>
 <th style="padding:10px 8px;text-align:left;font-weight:800;border-bottom:2px solid #ddd">Строк</th>
@@ -2914,7 +2945,7 @@ setTimeout(()=>g.classList.add('v'),300);
 setTimeout(()=>lb.classList.add('v'),500);
 
 // Animate loading squares (3 seconds total)
-const loadDuration=3000;
+const loadDuration=1200;
 const squareDelay=loadDuration/numSquares;
 
 squares.forEach((sq,i)=>{
@@ -3551,14 +3582,19 @@ function dcTimingMultiply(mult) {
 
 function dcTimingReset() { dcTimingMultiply(1.0); }
 
+var _dcTimingSaveTimer = null;
 function dcTimingSave(which) {
-  var toSave = {};
-  Object.keys(DC_TIMING_DEFAULTS).forEach(function(k){ toSave[k] = DC_LOCAL_TIMINGS[k]; DC_TIMINGS[k] = DC_LOCAL_TIMINGS[k]; });
-  localStorage.setItem('at_timings_local', JSON.stringify(toSave));
-  localStorage.setItem('at_timings', JSON.stringify(toSave));
-  window.AT_TIMINGS = DC_TIMINGS;
-  window.postMessage({ type: 'AT_TIMINGS_UPDATE', timings: DC_TIMINGS }, '*');
-  logToDevConsole('💾 Тайминги для этого ПК сохранены', 'success');
+  if (_dcTimingSaveTimer) clearTimeout(_dcTimingSaveTimer);
+  _dcTimingSaveTimer = setTimeout(function(){
+    _dcTimingSaveTimer = null;
+    var toSave = {};
+    Object.keys(DC_TIMING_DEFAULTS).forEach(function(k){ toSave[k] = DC_LOCAL_TIMINGS[k]; DC_TIMINGS[k] = DC_LOCAL_TIMINGS[k]; });
+    localStorage.setItem('at_timings_local', JSON.stringify(toSave));
+    localStorage.setItem('at_timings', JSON.stringify(toSave));
+    window.AT_TIMINGS = DC_TIMINGS;
+    window.postMessage({ type: 'AT_TIMINGS_UPDATE', timings: DC_TIMINGS }, '*');
+    logToDevConsole('💾 Тайминги для этого ПК сохранены', 'success');
+  }, 400);
 }
 
 // Пресеты
@@ -5414,9 +5450,11 @@ function loadFillingHistory() {
 				if(idx>=0) fillingHistory[idx]=data; else fillingHistory.unshift(data);
 				fillingHistory.sort(function(a,b){return (b.id||0)-(a.id||0);});
 				saveFillingHistory();
+				if(typeof renderFillingHistory==='function') try{ renderFillingHistory(); }catch(e){}
 			} else if(action==='remove'){
 				fillingHistory=fillingHistory.filter(function(x){return String(x.id)!==String(id);});
 				saveFillingHistory();
+				if(typeof renderFillingHistory==='function') try{ renderFillingHistory(); }catch(e){}
 			}
 		});
 	}
@@ -8588,6 +8626,16 @@ function zGetAchievement(count) {
 }
 function zLoadRating(){try{return JSON.parse(localStorage.getItem(Z_RATING_LS)||'{}');}catch(e){return{};}}
 function zSaveRating(data){
+  // Синхронизация рейтинга в Firebase RT
+  if(typeof AT_rtPush==='function'){
+    Object.keys(data).forEach(function(shk){
+      var entry = data[shk];
+      if(entry && shk){
+        var safeKey = String(shk).replace(/[.#$[\]/]/g,'_');
+        try { AT_rtPush('zrating', safeKey, entry); } catch(e){}
+      }
+    });
+  }
   // Primary: IndexedDB + Firebase (no quota issues)
   if(typeof AT_dbSet==='function'){
     AT_dbSet(Z_RATING_LS, JSON.stringify(data)).catch(function(){});
@@ -9067,6 +9115,8 @@ function dcRenderAnnounce() {
       if (ta) ta.value = t2;
       if (prev) prev.textContent = t2 || '(пусто)';
       try { if (t2) localStorage.setItem(_AT_ANNOUNCE_KEY, t2); else localStorage.removeItem(_AT_ANNOUNCE_KEY); } catch(e) {}
+      // Обновляем баннер на сайте
+      if (typeof _atAnnounceUpdate === 'function') try { _atAnnounceUpdate(t2); } catch(e2) {}
     });
   }
   ta.oninput = function() {
@@ -9131,21 +9181,22 @@ function _atAnnounceUpdate(text) {
 }
 
 function _atAnnounceFetchAndShow() {
-  // Показываем из LS сразу
+  // Показываем из LS сразу для мгновенного отображения
   try { var ls = localStorage.getItem(_AT_ANNOUNCE_KEY) || ''; if (ls) _atAnnounceUpdate(ls); } catch(e) {}
   if (!window._fbDb || !window.SHARED_PATH) {
-    console.warn('[ANNOUNCE] Firebase not ready, will retry on connection');
+    console.warn('[ANNOUNCE] Firebase not ready');
     return;
   }
-  console.log('[ANNOUNCE] Subscribing to Firebase /announce/msg ...');
-  window._fbDb.ref(window.SHARED_PATH + '/announce/msg').on('value', function(snap) {
+  // Один раз читаем текущее значение (RT listener через RT_COLS обрабатывает изменения)
+  console.log('[ANNOUNCE] Fetching current value from Firebase...');
+  window._fbDb.ref(window.SHARED_PATH + '/announce/msg').once('value', function(snap) {
     var val = snap.val();
     var text = (val && val.text) ? val.text : '';
-    console.log('[ANNOUNCE] Firebase value received:', text ? '"'+text.slice(0,40)+'"' : '(empty)');
+    console.log('[ANNOUNCE] Firebase once value:', text ? '"'+text.slice(0,40)+'"' : '(empty)');
     try { if (text) localStorage.setItem(_AT_ANNOUNCE_KEY, text); else localStorage.removeItem(_AT_ANNOUNCE_KEY); } catch(e) {}
     _atAnnounceUpdate(text);
   }, function(err) {
-    console.error('[ANNOUNCE] Firebase subscribe error:', err);
+    console.error('[ANNOUNCE] Firebase once error:', err);
   });
 }
 
@@ -10749,9 +10800,13 @@ const BOXES_MAX_HIST = 30;
 				if(idx>=0) boxesHistory[idx]=data; else boxesHistory.unshift(data);
 				boxesHistory.sort(function(a,b){return (b.id||0)-(a.id||0);});
 				try { localStorage.setItem(BOXES_HIST_KEY, JSON.stringify(boxesHistory.slice(0,15))); } catch(e){}
+				var hm = document.getElementById('boxesHistModal');
+				if(hm && hm.classList.contains('active')) try{ _boxesHistRender(); }catch(e){}
 			} else if(action==='remove'){
 				boxesHistory=boxesHistory.filter(function(x){return String(x.id)!==String(id);});
 				try { localStorage.setItem(BOXES_HIST_KEY, JSON.stringify(boxesHistory.slice(0,15))); } catch(e){}
+				var hm = document.getElementById('boxesHistModal');
+				if(hm && hm.classList.contains('active')) try{ _boxesHistRender(); }catch(e){}
 			}
 		});
 	}
@@ -11093,14 +11148,16 @@ function boxesRecheckExisting() {
 // BOXES_DECL_INFO: declaration found for box
 function boxesOnDeclInfo(boxIndex, shksRaw, boxId) {
 	var b, realIdx = boxIndex;
-	if (boxId) {
+	// Всегда используем boxIndex — индекс запрошенной коробки (не перебрасываем по boxId)
+	b = boxesData[boxIndex];
+	if (!b && boxId) {
+		// Fallback: поиск по boxId только если boxIndex не нашёл коробку
 		var cleanId = String(boxId).replace(/^(WCT|TRBX)/i,'');
 		var fi = boxesData.findIndex(function(bd){
 			return bd.box===boxId || String(bd.box).replace(/^(WCT|TRBX)/i,'')===cleanId;
 		});
 		if (fi >= 0) { b = boxesData[fi]; realIdx = fi; }
 	}
-	if (!b) b = boxesData[boxIndex];
 	if (!b) return;
 	b.shks = (shksRaw || []).map(function(s) {
 		var wbId = s.wbsticker_id || s;
@@ -12219,6 +12276,12 @@ function boxesExportExcel() {
 var trackingItems = [];
 var trackingTimers = {};
 const TRACKING_LS = 'trackingItemsV2';
+var _trackingScope = 'all'; // 'profile' | 'pc' | 'all'
+var _trackingPcId = (function(){
+    var id = localStorage.getItem('at_pc_id');
+    if (!id) { id = 'pc_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); localStorage.setItem('at_pc_id', id); }
+    return id;
+})();
 const TRACKING_MAX = 50;
 
 (function(){
@@ -12241,6 +12304,14 @@ const TRACKING_MAX = 50;
         AT_rtListen('tracking', function(action, id, data){
             if(action==='add'){
                 if(!data||!data.shk) return;
+                // Проверяем scope — принимаем только то что нам показывается
+                var scope = data.scope || 'all';
+                var curProfileId = (typeof _pfCurrentId !== 'undefined') ? _pfCurrentId : '';
+                if(scope === 'profile' && data.profileId !== curProfileId) {
+                    // ШК для другого профиля — не принимаем (если не наш профиль)
+                    // НО: если добавляли на этом ПК — всё равно сохраняем в массив (для переключения профиля)
+                    if(data.pcId !== _trackingPcId) return;
+                }
                 var idx=trackingItems.findIndex(function(x){return x.shk===data.shk;});
                 if(idx>=0) trackingItems[idx]=data; else trackingItems.push(data);
                 trackingSave();
@@ -12294,6 +12365,22 @@ function trackingIntervalLabel(ms){
     return Math.round(ms/60000)+' мин';
 }
 
+function trackingScopeSet(scope) {
+    _trackingScope = scope;
+    ['profile','pc','all'].forEach(function(s) {
+        var btn = document.getElementById('tscope_' + s);
+        if (!btn) return;
+        var isDark = document.body.classList.contains('dark');
+        if (s === scope) {
+            btn.style.background = '#667eea';
+            btn.style.color = '#fff';
+        } else {
+            btn.style.background = isDark ? '#333' : '#fff';
+            btn.style.color = isDark ? '#ccc' : '#555';
+        }
+    });
+}
+
 function trackingAdd(){
     var shk = (document.getElementById('trackingInput').value||'').trim().replace(/\D/g,'');
     var comment = (document.getElementById('trackingComment').value||'').trim();
@@ -12303,7 +12390,7 @@ function trackingAdd(){
     if(trackingItems.length>=TRACKING_MAX){ alert('Максимум 50 ШК'); return; }
     if(trackingItems.find(function(i){ return i.shk===shk; })){ alert('ШК уже добавлен'); return; }
     var ms = trackingIntervalMs(val, unit);
-    var item = {shk:shk,comment:comment,intervalMs:ms,lastRowCount:-1,lastChecked:null,nextCheck:Date.now(),status:'⏳ Ожидает первой проверки',addedAt:Date.now(),profile:(typeof pfAttr==='function'?pfAttr():''),profileId:(typeof _pfCurrentId!=='undefined'?_pfCurrentId:'')};
+    var item = {shk:shk,comment:comment,intervalMs:ms,lastRowCount:-1,lastChecked:null,nextCheck:Date.now(),status:'⏳ Ожидает первой проверки',addedAt:Date.now(),profile:(typeof pfAttr==='function'?pfAttr():''),profileId:(typeof _pfCurrentId!=='undefined'?_pfCurrentId:''),scope:_trackingScope,pcId:_trackingPcId};
     trackingItems.push(item);
     trackingSave();
     _trackingRtPushOne(item);
@@ -12486,6 +12573,9 @@ function trackingShowAlert(shk, rowCount, diff, prevCount){
     var commentHtml = comment ? '<p style="font-size:14px;color:#888;margin:0 0 8px">📝 '+comment+'</p>' : '';
     var mxHtml = mxStr ? '<p style="font-size:14px;color:#555;margin:0 0 4px">МХ: <strong style="color:#6366f1">'+mxStr+'</strong></p>' : '';
     var profHtml = profName ? '<p style="font-size:13px;color:#999;margin:0 0 0">👤 Поставил на отслеживание: <strong>'+profName+'</strong></p>' : '';
+    var scopeStr = item ? (item.scope||'all') : 'all';
+    var scopeName = scopeStr==='profile'?'👤 Профиль':scopeStr==='pc'?'🖥️ На этом ПК':'🌐 Все';
+    var scopeHtml = '<p style="font-size:11px;color:#aaa;margin:4px 0 0">Видимость: '+scopeName+'</p>';
     var ex = document.getElementById('trackingAlertModal');
     if(ex) ex.remove();
     var modal = document.createElement('div');
@@ -12511,7 +12601,13 @@ function trackingShowAlert(shk, rowCount, diff, prevCount){
     notifLines.push('Было: '+(prevCount||0)+' → Стало: '+rowCount+' (Δ='+(diff>0?'+':'')+diff+')');
     if(mxStr) notifLines.push('МХ: '+mxStr);
     if(profName) notifLines.push('👤 '+profName);
-    _trackingShowNotification('🚨 Движение у ШК ' + shk, notifLines.join('\n'));
+    // Показываем браузерное уведомление только если scope разрешает текущему пользователю
+    var _alertScope = item ? (item.scope||'all') : 'all';
+    var _curPid = (typeof _pfCurrentId !== 'undefined') ? _pfCurrentId : '';
+    var _shouldNotify = true;
+    if (_alertScope === 'profile' && item && item.profileId !== _curPid) _shouldNotify = false;
+    if (_alertScope === 'pc' && item && item.pcId !== _trackingPcId) _shouldNotify = false;
+    if (_shouldNotify) _trackingShowNotification('🚨 Движение у ШК ' + shk, notifLines.join('\n'));
 }
 
 // Send browser notification — relays through content.js → background (works when minimized/other tab)
@@ -12574,25 +12670,40 @@ function trackingRender(){
         });
     }
     
-    tbody.innerHTML = trackingItems.map(function(item,i){
+    // Фильтрация по scope — показываем только то что видно текущему пользователю
+    var curPid = (typeof _pfCurrentId !== 'undefined') ? _pfCurrentId : '';
+    var visibleItems = trackingItems.filter(function(item) {
+        var s = item.scope || 'all';
+        if (s === 'all') return true;
+        if (s === 'pc') return !item.pcId || item.pcId === _trackingPcId;
+        if (s === 'profile') return item.profileId === curPid;
+        return true;
+    });
+
+    tbody.innerHTML = visibleItems.map(function(item,i){
         var nextStr = item.paused ? '⏸️ На паузе' : (item.nextCheck ? new Date(item.nextCheck).toLocaleTimeString('ru-RU') : '—');
         var rowBg = i%2===0?bg0:bg1;
-        if(item.paused) rowBg = isDark?'#2a1a00':'#fff8e1'; // warm highlight for paused
+        if(item.paused) rowBg = isDark?'#2a1a00':'#fff8e1';
         var mxVal = item.lastMx || '—';
         var shkStyle = item.paused ? 'color:#ff9800;font-weight:900' : 'color:'+(isDark?'#90caf9':'#1976d2')+';font-weight:700';
-        
+        // Значок видимости
+        var sc = item.scope || 'all';
+        var scIcon = sc==='profile'?'👤':sc==='pc'?'🖥️':'🌐';
+        var scLabel = sc==='profile'?'Профиль':sc==='pc'?'Этот ПК':'Все';
+        var scColor = sc==='profile'?'#9c27b0':sc==='pc'?'#2196f3':'#4caf50';
+        var scopeCell = '<span style="font-size:11px;font-weight:700;color:'+scColor+';white-space:nowrap">'+scIcon+' '+scLabel+'</span>';
         // Action buttons
         var actionBtns = '<button onclick="trackingDoCheck(\''+item.shk+'\')" style="padding:4px 8px;background:#2196f3;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;margin-right:4px" title="Проверить сейчас">🔄</button>';
         if(item.paused){
             actionBtns += '<button onclick="trackingResume(\''+item.shk+'\')" style="padding:4px 10px;background:#4caf50;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:14px;margin-right:4px;font-weight:900" title="Возобновить проверку">▶</button>';
         }
         actionBtns += '<button onclick="trackingRemove(\''+item.shk+'\')" style="padding:4px 8px;background:#f44336;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px" title="Удалить">✕</button>';
-        
         var _badge=(typeof pfGetProfileBadge==='function')?pfGetProfileBadge(item.profileId||'',item.profile||''):(item.profile?'<span style="font-size:12px">'+item.profile+'</span>':'<span style="color:#999">—</span>');
         return '<tr style="background:'+rowBg+';color:'+txt+'">'
             +'<td style="padding:10px 8px;border-bottom:1px solid '+bd+';font-family:monospace;'+shkStyle+'">'+item.shk+'</td>'
             +'<td style="padding:10px 8px;border-bottom:1px solid '+bd+';white-space:nowrap">'+(_badge||'<span style="color:#999">—</span>')+'</td>'
             +'<td style="padding:10px 8px;border-bottom:1px solid '+bd+';font-size:12px;color:'+(isDark?'#aaa':'#555')+';">'+(item.comment||'—')+'</td>'
+            +'<td style="padding:10px 8px;border-bottom:1px solid '+bd+'">'+scopeCell+'</td>'
             +'<td style="padding:10px 8px;border-bottom:1px solid '+bd+';font-size:12px;max-width:200px">'+item.status+'</td>'
             +'<td style="padding:10px 8px;border-bottom:1px solid '+bd+';font-size:12px">'+(item.lastChecked||'—')+'</td>'
             +'<td style="padding:10px 8px;border-bottom:1px solid '+bd+';font-family:monospace;font-weight:700;text-align:center">'+(item.lastRowCount>=0?item.lastRowCount:'—')+'</td>'
@@ -13121,7 +13232,8 @@ function shkAutoSelectAndCheck_search() {
   if (!goodsIds.length) { alert('Нет ШК для проверки.'); return; }
   logToDevConsole('🔍 Авто-выбор ШК без инфо: ' + goodsIds.length + ' шт', 'info', 'decl');
   window._searchCheckOrigIndexes = missingIdxs.slice();
-  startCheckingStickers(goodsIds, false, 0, true);
+  // false = не сбрасываем таблицу, только заполняем пустые ячейки
+  startCheckingStickers(goodsIds, false, 0, false);
 }
 
 function shkReCheckSelected_search() {
