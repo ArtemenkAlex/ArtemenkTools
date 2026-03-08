@@ -14151,8 +14151,8 @@ function shkAutoSelectAndCheck_search() {
   if (!goodsIds.length) { alert('Нет ШК для проверки.'); return; }
   logToDevConsole('🔍 Авто-выбор ШК без инфо: ' + goodsIds.length + ' шт', 'info', 'decl');
   window._searchCheckOrigIndexes = missingIdxs.slice();
-  // partial=true — проверяем ТОЛЬКО переданные ШК, не всю таблицу
-  startCheckingStickers(goodsIds, false, 0, true);
+  // partial=false — берётся вся таблица по порядку, _searchCheckOrigIndexes используется для маппинга
+  startCheckingStickers(goodsIds, false, 0, false);
 }
 
 function shkReCheckSelected_search() {
