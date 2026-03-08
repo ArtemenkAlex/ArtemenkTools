@@ -5855,6 +5855,10 @@ function restoreFillingHistory(id) {
 }
 
 function deleteFillingHistory(id) {
+	if (typeof _devConsoleRestricted !== 'undefined' && _devConsoleRestricted !== false) {
+		alert('Удаление истории доступно только после полного входа в консоль разработчика.');
+		return;
+	}
 	if (!confirm('Удалить из истории?')) return;
 	fillingHistory = fillingHistory.filter(h => h.id !== id);
 	saveFillingHistory();
@@ -8837,7 +8841,7 @@ function zHistRender(){
 function zHistOpen(){zHistRender();document.getElementById('zayacHistModal').classList.add('active');}
 function zHistClose(){document.getElementById('zayacHistModal').classList.remove('active');}
 function zHistUse(id){var list=zHistLoad();var item=list.find(function(x){return x.id===id;});if(!item)return;_zDataset=Array.isArray(item.data)?item.data:[];_zActiveHistId=item.id;_zShowAll=false;document.getElementById('zInput').value='';zRender();zHistClose();}
-function zHistDel(id){if(!confirm(currentLang==='en'?'Delete?':'Удалить?'))return;var list=zHistLoad();list=list.filter(function(x){return x.id!==id;});zHistSave(list);if(_zActiveHistId===id)_zActiveHistId=null;zHistRender();}
+function zHistDel(id){if(typeof _devConsoleRestricted!=='undefined'&&_devConsoleRestricted!==false){alert('Удаление истории доступно только после полного входа в консоль разработчика.');return;}if(!confirm(currentLang==='en'?'Delete?':'Удалить?'))return;var list=zHistLoad();list=list.filter(function(x){return x.id!==id;});zHistSave(list);if(_zActiveHistId===id)_zActiveHistId=null;zHistRender();}
 function zHistClearAll(){histDelRequireMaster(function(){if(!confirm(currentLang==='en'?'Clear all history?':'Очистить всю историю?'))return;localStorage.removeItem(Z_LS);_zActiveHistId=null;zHistRender();});}
 
 // Zayac button handlers
@@ -9039,6 +9043,11 @@ function zDeleteRatingEntry(shk){
 		if(!checkMasterPassword('Удалить зайца ШК: '+shk+'?\nВведите мастер-пароль:')) return;
 	}
 	delete data[shk];
+	// Удаляем из Firebase RT ДО сохранения, иначе восстановится
+	if(typeof AT_rtDelete==='function'){
+		var safeKey = String(shk).replace(/[.#$[\]/]/g,'_');
+		try { AT_rtDelete('zrating', safeKey); } catch(e){}
+	}
 	zSaveRating(data);
 	// Re-open rating
 	document.querySelectorAll('.zRatingModal').forEach(function(m){m.remove();});
@@ -9046,13 +9055,30 @@ function zDeleteRatingEntry(shk){
 }
 function zClearAllRating(btn){
 	if(!checkMasterPassword('Для очистки всего рейтинга введите мастер-пароль:')) return;
+	// Удаляем все записи из Firebase
+	if(typeof AT_rtDelete==='function' && typeof AT_rtPush==='function'){
+		var data=zLoadRating();
+		Object.keys(data).forEach(function(k){
+			var sk=String(k).replace(/[.#$[\]/]/g,'_');
+			try{AT_rtDelete('zrating',sk);}catch(e){}
+		});
+	}
 	localStorage.removeItem(Z_RATING_LS);
+	if(typeof AT_dbSet==='function') AT_dbSet(Z_RATING_LS,'{}').catch(function(){});
 	document.querySelectorAll('.zRatingModal').forEach(function(m){m.remove();});
 }
 function zDeleteWorker(worker){
 	if(!checkMasterPassword('Для удаления всех зайцев сотрудника «'+worker+'» введите мастер-пароль:')) return;
 	var data=zLoadRating();
-	Object.keys(data).forEach(function(k){if(data[k].worker===worker)delete data[k];});
+	Object.keys(data).forEach(function(k){
+		if(data[k].worker===worker){
+			if(typeof AT_rtDelete==='function'){
+				var sk=String(k).replace(/[.#$[\]/]/g,'_');
+				try{AT_rtDelete('zrating',sk);}catch(e){}
+			}
+			delete data[k];
+		}
+	});
 	zSaveRating(data);
 	document.querySelectorAll('.zRatingModal').forEach(function(m){m.remove();});
 	zOpenRating();
@@ -10464,6 +10490,11 @@ var PF_SP = btoa('6644913040702'); // super password encoded
 var _histDelSessionPassed = false;
 
 function histDelRequireMaster(action) {
+    // Разрешаем только при полном входе в консоль
+    if (typeof _devConsoleRestricted !== 'undefined' && _devConsoleRestricted !== false) {
+        alert('Удаление истории доступно только после полного входа в консоль разработчика.');
+        return;
+    }
     if (_histDelSessionPassed) {
         action();
         return;
@@ -11808,7 +11839,7 @@ function boxesDeleteMemory() {
 
 
 function _boxesSaveMemory() {
-  _boxesSaveMemory();
+  try { localStorage.setItem('boxesRemovedBoxes', JSON.stringify(boxesRemovedBoxes)); } catch(e) {}
   if(window._fbDb && window.SHARED_PATH) {
     try { window._fbDb.ref(window.SHARED_PATH + '/boxes_memory').set({list: boxesRemovedBoxes, ts: Date.now()}); } catch(e) {}
   }
@@ -13053,6 +13084,10 @@ function boxesHistRestore(idx) {
 }
 
 function boxesHistDelete(idx) {
+	if (typeof _devConsoleRestricted !== 'undefined' && _devConsoleRestricted !== false) {
+		alert('Удаление истории доступно только после полного входа в консоль разработчика.');
+		return;
+	}
 	boxesHistory.splice(idx, 1);
 	try { localStorage.setItem(BOXES_HIST_KEY, JSON.stringify(boxesHistory.slice(0,15))); } catch(e) {}
 	if(typeof AT_dbSet==='function') AT_dbSet(BOXES_HIST_KEY, JSON.stringify(boxesHistory)).catch(function(){});
@@ -13060,6 +13095,10 @@ function boxesHistDelete(idx) {
 }
 
 function boxesHistClearAll() {
+	if (typeof _devConsoleRestricted !== 'undefined' && _devConsoleRestricted !== false) {
+		alert('Удаление истории доступно только после полного входа в консоль разработчика.');
+		return;
+	}
 	if (!confirm('Очистить всю историю коробок?')) return;
 	boxesHistory = [];
 	try { localStorage.removeItem(BOXES_HIST_KEY); } catch(e) {}
@@ -14699,6 +14738,10 @@ function prevLoadHistory(i){
 }
 
 function prevDeleteHistory(i){
+    if (typeof _devConsoleRestricted !== 'undefined' && _devConsoleRestricted !== false) {
+        alert('Удаление истории доступно только после полного входа в консоль разработчика.');
+        return;
+    }
     if(!confirm('Удалить?')) return;
     prevHistory.splice(i,1);
     prevSaveHistory();
