@@ -958,8 +958,8 @@ var FB_CFG = {
   projectId:"artemenktools"
 };
 
-var _fbDb = null;
-var _fbOnline = false; window._fbOnline = false; window._fbOnline = false;
+var _fbDb = null; window._fbDb = null; // Экспорт для функций вне IIFE
+var _fbOnline = false; window._fbOnline = false;
 var _fbReady = false;
 
 // Очередь записей которые не смогли уйти в Firebase (офлайн)
@@ -995,6 +995,7 @@ function _flushPending(){
 // ── Shared collections: каждая запись = отдельный узел ──────────────
 // path: shared/{collection}/{id}
 var SHARED_PATH = 'shared';
+window.SHARED_PATH = SHARED_PATH; // Экспортируем для функций вне IIFE (dcAnnounceAction и др.)
 
 // Коллбэки для обновления UI при получении данных от других устройств
 var _rtListeners = {}; // collection → fn(items)
@@ -1037,14 +1038,23 @@ _rtListeners['announce'] = function(action, id, data) {
     console.log('[ANNOUNCE] RT: removed');
     return;
   }
-  // data: {text, ts, author} — напрямую из Firebase без обёртки {d:...}
+  // data может быть {d: JSON-строка, ts: ...} (через AT_rtPush) 
+  // или {text, ts, author} (прямой ref.set)
   var text = '';
   if (data && typeof data === 'object') {
-    text = data.text || data.d || '';
-    // Если data.d — это строка JSON → распарсить
-    if (!text && typeof data.d === 'string') {
-      try { var pd = JSON.parse(data.d); text = pd.text || pd || ''; } catch(e) { text = data.d; }
+    if (data.d) {
+      // AT_rtPush формат: data.d = JSON строка или объект
+      if (typeof data.d === 'string') {
+        try { 
+          var pd = JSON.parse(data.d);
+          text = (pd && pd.text) ? pd.text : (typeof pd === 'string' ? pd : '');
+        } catch(e) { text = data.d; }
+      } else if (typeof data.d === 'object') {
+        text = data.d.text || '';
+      }
     }
+    // Прямой формат {text, ts, author} (fallback / legacy)
+    if (!text) text = data.text || '';
   } else if (typeof data === 'string') {
     text = data;
   }
@@ -1303,6 +1313,7 @@ function initFirebase(){
       }
       // database() без аргументов — compat SDK берёт databaseURL из FB_CFG
       _fbDb = firebase.database();
+      window._fbDb = _fbDb; // Синхронизируем с window для функций вне IIFE
       console.log('[AT_FB] ✅ Database initialized:', FB_CFG.databaseURL);
 
       // Статус соединения
@@ -1369,11 +1380,23 @@ function initFirebase(){
         var id = itemSnap.key;
         var path = SHARED_PATH+'/'+col+'/'+id;
         if(!_fbOnline){ _fbOnline=true; if(typeof _atSyncSetState==='function') _atSyncSetState('ok'); }
-        // Сохраняем в IDB всегда
-        idbOpen().then(function(db){
-          var tx = db.transaction('kv','readwrite');
-          tx.objectStore('kv').put({k:'rt:'+path, v:JSON.stringify(val)});
-        }).catch(function(){});
+        // Батчируем IDB writes — не создаём отдельную транзакцию на каждый снапшот
+        if(!window._idbWriteQueue) window._idbWriteQueue = {};
+        window._idbWriteQueue['rt:'+path] = JSON.stringify(val);
+        if(!window._idbWriteTimer){
+          window._idbWriteTimer = setTimeout(function(){
+            var queue = window._idbWriteQueue || {};
+            window._idbWriteQueue = {};
+            window._idbWriteTimer = null;
+            var keys = Object.keys(queue);
+            if(!keys.length) return;
+            idbOpen().then(function(db){
+              var tx = db.transaction('kv','readwrite');
+              var store = tx.objectStore('kv');
+              keys.forEach(function(k){ store.put({k:k, v:queue[k]}); });
+            }).catch(function(){});
+          }, 200); // батч каждые 200ms
+        }
 
         // ANNOUNCE: хранится напрямую {text,ts,author} без обёртки {d:...}
         // dcAnnounceAction пишет через ref.set() напрямую, не через AT_rtPush
@@ -1455,25 +1478,24 @@ function initFirebase(){
         }).catch(function(){});
       });
 
-      // Новый ПК: принудительно загружаем все данные из Firebase и вызываем RT listeners
-      _fbDb.ref(SHARED_PATH).once('value', function(snap){
-        var d = snap.val();
-        if(!d) return;
-        Object.keys(d).forEach(function(col){
-          if(!_rtListeners[col]) return;
-          var cd = d[col]; if(!cd) return;
-          Object.keys(cd).forEach(function(id){
-            var val = cd[id]; if(!val||!val.d) return;
-            try{
-              var parsed = typeof val.d==='string' ? JSON.parse(val.d) : val.d;
-              _rtFire(col, 'add', id, parsed, val.ts);
-            }catch(e){}
-          });
-        });
-      }).catch(function(){});
+      // ВНИМАНИЕ: once('value') на весь shared/ УДАЛЁН — он вызывал зависание браузера
+      // Firebase child_added автоматически обрабатывает все существующие узлы
+      // при первой подписке (асинхронно по одному, не блокируя UI)
+      // announce загружается через отдельный init fetch ниже
       _fbReady = true;
       window.dispatchEvent(new CustomEvent('AT_fb_ready'));
       // Announce подписка произойдёт через .info/connected или AT_fb_ready
+      // Принудительно загружаем текущее announce при каждой инициализации
+      try {
+        _fbDb.ref(SHARED_PATH + '/announce/msg').once('value', function(snap) {
+          var text = _parseAnnounceVal(snap.val());
+          if (text) {
+            console.log('[ANNOUNCE] Init fetch: "' + text.slice(0,40) + '"');
+            try { localStorage.setItem('at_announce_v1', text); } catch(e2) {}
+            if (typeof _atAnnounceUpdate === 'function') _atAnnounceUpdate(text);
+          }
+        });
+      } catch(e2) {}
       console.log('[AT_SYNC] 🚀 Real-time engine готов');
 
     } catch(e){ console.warn('[AT_SYNC] Init error:', e); }
@@ -1506,7 +1528,7 @@ idbOpen().then(function(db){
 }).catch(function(e){ console.warn('[AT_DB] Init error:', e); });
 
 // Firebase loads after a short delay (non-blocking)
-setTimeout(initFirebase, 1500);
+setTimeout(initFirebase, 4000); // Запуск ПОСЛЕ заставки (3000ms + 800ms fadeout = 3800ms)
 
 // ── Export / Import ───────────────────────────────────────────────
 window.AT_exportData = async function(){
@@ -2945,7 +2967,7 @@ setTimeout(()=>g.classList.add('v'),300);
 setTimeout(()=>lb.classList.add('v'),500);
 
 // Animate loading squares (3 seconds total)
-const loadDuration=1200;
+const loadDuration=3000;
 const squareDelay=loadDuration/numSquares;
 
 squares.forEach((sq,i)=>{
@@ -9109,8 +9131,7 @@ function dcRenderAnnounce() {
   // Всегда перечитываем из Firebase (актуальные данные)
   if (window._fbDb && window.SHARED_PATH) {
     window._fbDb.ref(window.SHARED_PATH + '/announce/msg').once('value', function(snap) {
-      var val = snap.val();
-      var t2 = (val && val.text) ? val.text : '';
+      var t2 = _parseAnnounceVal(snap.val());
       console.log('[ANNOUNCE] dcRenderAnnounce from Firebase:', t2 ? '"'+t2.slice(0,30)+'"' : '(empty)');
       if (ta) ta.value = t2;
       if (prev) prev.textContent = t2 || '(пусто)';
@@ -9133,28 +9154,70 @@ function dcAnnounceAction(action) {
     if (statusEl) { statusEl.innerHTML = '<span style="color:#f59e0b">⚠️ Введите текст уведомления</span>'; }
     return;
   }
+  // 1. Сохраняем локально немедленно
   try {
     if (text) localStorage.setItem(_AT_ANNOUNCE_KEY, text);
     else localStorage.removeItem(_AT_ANNOUNCE_KEY);
   } catch(e) {}
-  if (window._fbDb && window.SHARED_PATH) {
-    var ref = window._fbDb.ref(window.SHARED_PATH + '/announce/msg');
+
+  // 2. Отправляем в Firebase
+  function _doFirebaseSave(db) {
+    var fbPath = (window.SHARED_PATH || 'shared') + '/announce/msg';
+    var ref = db.ref(fbPath);
     if (text) {
-      console.log('[ANNOUNCE] Saving to Firebase:', '"'+text.slice(0,40)+'"');
-      ref.set({ text: text, ts: Date.now(), author: 'admin' }).then(function(){
-        console.log('[ANNOUNCE] ✅ Saved to Firebase successfully');
-      }).catch(function(e){ console.error('[ANNOUNCE] ❌ Firebase save error:', e); });
+      var payload = { text: text, ts: Date.now(), author: 'admin' };
+      console.log('[ANNOUNCE] Saving to Firebase path:', fbPath, 'payload:', JSON.stringify(payload));
+      ref.set(payload).then(function(){
+        console.log('[ANNOUNCE] ✅ Saved to Firebase OK');
+        if (statusEl) {
+          statusEl.innerHTML = '<span style="color:#4caf50">✅ Отправлено всем (Firebase ✓)</span>';
+          setTimeout(function() { statusEl.innerHTML = ''; }, 3000);
+        }
+      }).catch(function(err){
+        console.error('[ANNOUNCE] ❌ Firebase save FAILED:', err);
+        if (statusEl) {
+          statusEl.innerHTML = '<span style="color:#f44336">❌ Ошибка Firebase: ' + (err.message||err) + '</span>';
+        }
+      });
     } else {
-      console.log('[ANNOUNCE] Removing from Firebase');
-      ref.remove();
+      console.log('[ANNOUNCE] Removing from Firebase path:', fbPath);
+      ref.remove().then(function(){
+        console.log('[ANNOUNCE] ✅ Removed from Firebase OK');
+      }).catch(function(err){
+        console.error('[ANNOUNCE] ❌ Firebase remove FAILED:', err);
+      });
     }
   }
+
+  var fbDb = window._fbDb || (typeof _fbDb !== 'undefined' ? _fbDb : null);
+  if (fbDb) {
+    _doFirebaseSave(fbDb);
+  } else {
+    // Firebase ещё не готов — ждём и повторяем
+    console.warn('[ANNOUNCE] Firebase not ready, will retry in 2s...');
+    if (statusEl) statusEl.innerHTML = '<span style="color:#f59e0b">⏳ Firebase загружается, отправка через 2 сек...</span>';
+    var retryCount = 0;
+    var retryTimer = setInterval(function() {
+      retryCount++;
+      var db2 = window._fbDb || (typeof _fbDb !== 'undefined' ? _fbDb : null);
+      if (db2) {
+        clearInterval(retryTimer);
+        _doFirebaseSave(db2);
+      } else if (retryCount >= 10) {
+        clearInterval(retryTimer);
+        console.error('[ANNOUNCE] Firebase not available after 10s');
+        if (statusEl) statusEl.innerHTML = '<span style="color:#f44336">❌ Firebase недоступен. Локально сохранено.</span>';
+      }
+    }, 1000);
+  }
+
+  // 3. Обновляем локальный баннер
   _atAnnounceUpdate(text);
-  if (statusEl) {
+  if (statusEl && (fbDb || text === '')) {
     statusEl.innerHTML = action === 'delete'
       ? '<span style="color:#4caf50">✅ Уведомление удалено и скрыто у всех</span>'
-      : '<span style="color:#4caf50">✅ Уведомление сохранено и показано всем</span>';
-    setTimeout(function() { statusEl.innerHTML = ''; }, 3000);
+      : '<span style="color:#2196f3">⏳ Отправляем в Firebase...</span>';
+    if (action === 'delete') setTimeout(function() { statusEl.innerHTML = ''; }, 3000);
   }
   if (action === 'delete') {
     ta.value = '';
@@ -9163,6 +9226,23 @@ function dcAnnounceAction(action) {
   }
 }
 
+
+function _parseAnnounceVal(val) {
+  if (!val) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'object') {
+    // AT_rtPush формат: {d: JSON-строка или объект, ts: ...}
+    if (val.d) {
+      if (typeof val.d === 'string') {
+        try { var pd = JSON.parse(val.d); return (pd && pd.text) ? pd.text : (typeof pd === 'string' ? pd : ''); } catch(e) { return val.d; }
+      }
+      if (typeof val.d === 'object') return val.d.text || '';
+    }
+    // Прямой формат: {text, ts, author}
+    return val.text || '';
+  }
+  return '';
+}
 function _atAnnounceUpdate(text) {
   var banner = document.getElementById('atAnnounceBanner');
   if (!banner) return;
@@ -9190,8 +9270,7 @@ function _atAnnounceFetchAndShow() {
   // Один раз читаем текущее значение (RT listener через RT_COLS обрабатывает изменения)
   console.log('[ANNOUNCE] Fetching current value from Firebase...');
   window._fbDb.ref(window.SHARED_PATH + '/announce/msg').once('value', function(snap) {
-    var val = snap.val();
-    var text = (val && val.text) ? val.text : '';
+    var text = _parseAnnounceVal(snap.val());
     console.log('[ANNOUNCE] Firebase once value:', text ? '"'+text.slice(0,40)+'"' : '(empty)');
     try { if (text) localStorage.setItem(_AT_ANNOUNCE_KEY, text); else localStorage.removeItem(_AT_ANNOUNCE_KEY); } catch(e) {}
     _atAnnounceUpdate(text);
