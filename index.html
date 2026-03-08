@@ -1058,9 +1058,18 @@ _rtListeners['announce'] = function(action, id, data) {
   } else if (typeof data === 'string') {
     text = data;
   }
-  console.log('[ANNOUNCE] RT received (id='+id+'):', text ? '"'+text.slice(0,40)+'"' : '(empty)', 'raw:', JSON.stringify(data).slice(0,80));
+  // Извлекаем settings из данных
+  var settings = null;
+  if (data && typeof data === 'object') {
+    settings = data.settings || (data.d && typeof data.d === 'object' && data.d.settings) || null;
+    if (!settings && data.d && typeof data.d === 'string') {
+      try { var pd2 = JSON.parse(data.d); settings = pd2.settings || null; } catch(e3) {}
+    }
+  }
+  if (settings) window._annCurrentSettings = settings;
+  console.log('[ANNOUNCE] RT received (id='+id+'):', text ? '"'+text.slice(0,40)+'"' : '(empty)', 'settings:', JSON.stringify(settings));
   try { if (text) localStorage.setItem('at_announce_v1', text); else localStorage.removeItem('at_announce_v1'); } catch(e) {}
-  if (typeof _atAnnounceUpdate === 'function') try { _atAnnounceUpdate(text); } catch(e) {}
+  if (typeof _atAnnounceUpdate === 'function') try { _atAnnounceUpdate(text, settings || undefined); } catch(e) {}
 };
 
 _rtListeners['profiles'] = function(action, id, data) {
@@ -1098,7 +1107,8 @@ _rtListeners['profiles'] = function(action, id, data) {
         if (document.getElementById('profileMgrModal') && document.getElementById('profileMgrModal').classList.contains('active')) {
           if (typeof pfManageAll === 'function') try { pfManageAll(); } catch(e) {}
         }
-        if (typeof pfRenderScreen === 'function') try { pfRenderScreen(); } catch(e) {}
+        // Только если не залогинен — показываем экран выбора профиля
+        if (!window._pfCurrentId && typeof pfRenderScreen === 'function') try { pfRenderScreen(); } catch(e) {}
       }
     }
   }
@@ -1287,7 +1297,7 @@ window._atSyncSetState = function(state){
 window._atSyncForce = function(){
   if(!window._fbDb) return;
   _flushPending();
-  if(typeof pfLoad._syncFromFirebase==='function') pfLoad._syncFromFirebase();
+  if(typeof pfLoad!=='undefined' && typeof pfLoad._syncFromFirebase==='function') pfLoad._syncFromFirebase();
 };
 
 // Показываем анимацию при каждой отправке
@@ -1332,7 +1342,7 @@ function initFirebase(){
               try{ _atAnnounceFetchAndShow(); }catch(e){}
             }
             // Синхронизируем профили
-            if(typeof pfLoad._syncFromFirebase==='function') try{ pfLoad._syncFromFirebase(); }catch(e){}
+            if(typeof pfLoad!=='undefined' && typeof pfLoad._syncFromFirebase==='function') try{ pfLoad._syncFromFirebase(); }catch(e){}
           }
           if(typeof _atSyncSetState==='function') _atSyncSetState('ok');
         } else {
@@ -1488,7 +1498,11 @@ function initFirebase(){
       // Принудительно загружаем текущее announce при каждой инициализации
       try {
         _fbDb.ref(SHARED_PATH + '/announce/msg').once('value', function(snap) {
-          var text = _parseAnnounceVal(snap.val());
+          var _sv = snap.val(), text = '';
+          if (_sv) {
+            if (_sv.d) { try { var _pd=JSON.parse(_sv.d); text=(_pd&&_pd.text)?_pd.text:''; } catch(e3){text=_sv.d||'';} }
+            if (!text) text = _sv.text || '';
+          }
           if (text) {
             console.log('[ANNOUNCE] Init fetch: "' + text.slice(0,40) + '"');
             try { localStorage.setItem('at_announce_v1', text); } catch(e2) {}
@@ -1715,6 +1729,11 @@ window.AT_importData = async function(file){
     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
     Спасибо
   </button>
+  <button onclick="devSwitchTab('users')" id="dcTab_users"
+    style="display:flex;align-items:center;gap:6px;padding:11px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all 0.2s;white-space:nowrap">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+    Пользователи
+  </button>
 </div>
 
 <!-- ── PANEL: LOGS ── -->
@@ -1835,40 +1854,201 @@ window.AT_importData = async function(file){
 </div><!-- /dcPanel_thanks -->
 
 <div id="dcPanel_announce" style="display:none;flex-direction:column;overflow-y:auto;min-height:0;flex:1;padding:20px">
-  <h3 style="margin:0 0 8px;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px">
+  <style>
+    .ann-section{background:#f8f7ff;border-radius:10px;padding:14px 16px;margin-bottom:14px;border:1px solid #e8e4ff}
+    .ann-section-title{font-size:11px;font-weight:800;color:#667eea;text-transform:uppercase;letter-spacing:.6px;margin-bottom:10px;display:flex;align-items:center;gap:5px}
+    .ann-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+    .ann-row:last-child{margin-bottom:0}
+    .ann-label{font-size:12px;font-weight:600;color:#444;min-width:130px}
+    .ann-toggle{display:flex;gap:0;border-radius:6px;overflow:hidden;border:1.5px solid #c4b5fd}
+    .ann-toggle button{padding:5px 12px;font-size:12px;font-weight:600;border:none;cursor:pointer;background:#f3f0ff;color:#6b7280;transition:all .2s}
+    .ann-toggle button.active{background:#667eea;color:#fff}
+    .ann-effect-btn{padding:5px 11px;font-size:12px;font-weight:600;border:1.5px solid #d1d5db;border-radius:6px;cursor:pointer;background:#fff;color:#374151;transition:all .2s}
+    .ann-effect-btn.active{border-color:#667eea;background:#f0edff;color:#667eea}
+    .ann-select{padding:5px 8px;border:1.5px solid #c4b5fd;border-radius:6px;font-size:12px;background:#fff;color:#374151;cursor:pointer}
+    .ann-color-btn{width:26px;height:26px;border-radius:50%;border:2px solid transparent;cursor:pointer;transition:all .2s;flex-shrink:0}
+    .ann-color-btn.active{border-color:#333;transform:scale(1.15)}
+    @keyframes ann-pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    @keyframes ann-shake{0%,100%{transform:translateX(0)}15%{transform:translateX(-6px)}30%{transform:translateX(6px)}45%{transform:translateX(-4px)}60%{transform:translateX(4px)}75%{transform:translateX(-2px)}90%{transform:translateX(2px)}}
+    @keyframes ann-bounce{0%,100%{transform:translateY(0)}30%{transform:translateY(-8px)}60%{transform:translateY(-4px)}}
+    @keyframes ann-glow{0%,100%{box-shadow:0 0 8px rgba(102,126,234,.5)}50%{box-shadow:0 0 24px rgba(102,126,234,1),0 0 40px rgba(118,75,162,.6)}}
+    .ann-fx-pulse{animation:ann-pulse 1.2s ease-in-out infinite!important}
+    .ann-fx-shake{animation:ann-shake .6s ease-in-out infinite!important}
+    .ann-fx-bounce{animation:ann-bounce .8s ease-in-out infinite!important}
+    .ann-fx-glow{animation:ann-glow 1.5s ease-in-out infinite!important}
+  </style>
+  <h3 style="margin:0 0 12px;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2"><path d="M22 17H2a3 3 0 0 0 3-3V9a7 7 0 0 1 14 0v5a3 3 0 0 0 3 3zm-8.27 4a2 2 0 0 1-3.46 0"/></svg>
     Уведомления для пользователей
   </h3>
-  <p style="margin:0 0 14px;font-size:12px;color:#888;line-height:1.5">
-    Текст отображается всем пользователям в виде баннера внизу страницы в реальном времени.<br>
-    Используйте для объявлений: технические работы, новые версии расширения и т.д.
-  </p>
-  <textarea id="dcAnnounceText" rows="4"
-    style="width:100%;padding:12px;border:2px solid #ddd;border-radius:8px;font-size:14px;resize:vertical;font-family:inherit;box-sizing:border-box;line-height:1.5"
-    placeholder="Пример: 🔧 Технические работы 22:00–23:00. Сайт будет недоступен.&#10;Пример: 🚀 Новое расширение v2.5! Обновите расширение в браузере."></textarea>
-  <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
+
+  <!-- Текст уведомления -->
+  <div class="ann-section">
+    <div class="ann-section-title">📝 Текст уведомления</div>
+    <textarea id="dcAnnounceText" rows="3" oninput="dcAnnouncePreviewUpdate()"
+      style="width:100%;padding:10px;border:1.5px solid #c4b5fd;border-radius:8px;font-size:14px;resize:vertical;font-family:inherit;box-sizing:border-box;line-height:1.5"
+      placeholder="🔧 Технические работы 22:00–23:00&#10;🚀 Обновите расширение до v2.5!"></textarea>
+  </div>
+
+  <!-- Режим отображения -->
+  <div class="ann-section">
+    <div class="ann-section-title">🖥️ Режим отображения</div>
+    <div class="ann-row">
+      <span class="ann-label">Режим:</span>
+      <div class="ann-toggle" id="ann-mode-toggle">
+        <button class="active" onclick="annSetMode('banner')" id="annModeBtn_banner">📌 Баннер внизу</button>
+        <button onclick="annSetMode('fullscreen')" id="annModeBtn_fullscreen">🔲 Во весь экран</button>
+      </div>
+    </div>
+    <div class="ann-row">
+      <span class="ann-label">Можно закрыть:</span>
+      <div class="ann-toggle" id="ann-closable-toggle">
+        <button class="active" onclick="annSetClosable(true)" id="annClosableBtn_yes">✅ Да</button>
+        <button onclick="annSetClosable(false)" id="annClosableBtn_no">🔒 Нет</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Эффекты -->
+  <div class="ann-section">
+    <div class="ann-section-title">✨ Эффекты для привлечения внимания</div>
+    <div class="ann-row">
+      <span class="ann-label">Анимация:</span>
+      <button class="ann-effect-btn active" onclick="annSetEffect('none')" id="annFx_none">Нет</button>
+      <button class="ann-effect-btn" onclick="annSetEffect('pulse')" id="annFx_pulse">💓 Пульс</button>
+      <button class="ann-effect-btn" onclick="annSetEffect('shake')" id="annFx_shake">📳 Дрожание</button>
+      <button class="ann-effect-btn" onclick="annSetEffect('bounce')" id="annFx_bounce">🏀 Отскок</button>
+      <button class="ann-effect-btn" onclick="annSetEffect('glow')" id="annFx_glow">✨ Свечение</button>
+    </div>
+    <div class="ann-row">
+      <span class="ann-label">Фон:</span>
+      <button class="ann-color-btn active" onclick="annSetColor('purple')" id="annColor_purple" style="background:linear-gradient(135deg,#667eea,#764ba2)" title="Фиолетовый"></button>
+      <button class="ann-color-btn" onclick="annSetColor('red')" id="annColor_red" style="background:linear-gradient(135deg,#ef4444,#dc2626)" title="Красный (важно!)"></button>
+      <button class="ann-color-btn" onclick="annSetColor('green')" id="annColor_green" style="background:linear-gradient(135deg,#10b981,#059669)" title="Зелёный"></button>
+      <button class="ann-color-btn" onclick="annSetColor('orange')" id="annColor_orange" style="background:linear-gradient(135deg,#f59e0b,#d97706)" title="Оранжевый"></button>
+      <button class="ann-color-btn" onclick="annSetColor('blue')" id="annColor_blue" style="background:linear-gradient(135deg,#3b82f6,#2563eb)" title="Синий"></button>
+      <button class="ann-color-btn" onclick="annSetColor('dark')" id="annColor_dark" style="background:linear-gradient(135deg,#1f2937,#111827)" title="Тёмный"></button>
+    </div>
+  </div>
+
+  <!-- Шрифт и размер -->
+  <div class="ann-section">
+    <div class="ann-section-title">🔤 Шрифт и размер</div>
+    <div class="ann-row">
+      <span class="ann-label">Размер текста:</span>
+      <div class="ann-toggle">
+        <button onclick="annSetFontSize('sm')" id="annSz_sm">S</button>
+        <button class="active" onclick="annSetFontSize('md')" id="annSz_md">M</button>
+        <button onclick="annSetFontSize('lg')" id="annSz_lg">L</button>
+        <button onclick="annSetFontSize('xl')" id="annSz_xl">XL</button>
+      </div>
+    </div>
+    <div class="ann-row">
+      <span class="ann-label">Шрифт:</span>
+      <select class="ann-select" id="annFontFamily" onchange="dcAnnouncePreviewUpdate()">
+        <option value="inherit">По умолчанию</option>
+        <option value="'Arial', sans-serif">Arial</option>
+        <option value="'Georgia', serif">Georgia</option>
+        <option value="'Courier New', monospace">Courier New</option>
+        <option value="'Trebuchet MS', sans-serif">Trebuchet MS</option>
+        <option value="'Impact', sans-serif">Impact</option>
+      </select>
+    </div>
+  </div>
+
+  <!-- Кнопки действий -->
+  <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
     <button onclick="dcAnnounceAction('save')"
       style="padding:10px 24px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-      Сохранить
+      Отправить всем
     </button>
     <button onclick="dcAnnounceAction('delete')"
-      style="padding:10px 24px;background:#fff0f0;color:#dc2626;border:2px solid #fca5a5;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+      style="padding:10px 20px;background:#fff0f0;color:#dc2626;border:2px solid #fca5a5;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/></svg>
       Удалить
     </button>
+    <button onclick="dcAnnouncePreviewShow()"
+      style="padding:10px 20px;background:#f0fdf4;color:#16a34a;border:2px solid #86efac;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;display:flex;align-items:center;gap:6px">
+      👁️ Предпросмотр
+    </button>
   </div>
-  <div id="dcAnnounceStatus" style="margin-top:10px;font-size:13px;min-height:22px;font-weight:600"></div>
-  <div style="margin-top:16px;padding:14px;background:#f5f3ff;border-radius:10px;border-left:4px solid #667eea">
-    <div style="font-size:11px;font-weight:700;color:#667eea;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Предпросмотр баннера:</div>
-    <div id="dcAnnouncePreview" style="font-size:13px;color:#333;min-height:20px">—</div>
-  </div>
-  <div style="margin-top:14px;padding:10px 14px;background:#fef9c3;border-radius:8px;font-size:11px;color:#92400e;line-height:1.5">
-    ℹ️ Уведомление сохраняется в Firebase и отображается у всех пользователей сразу после сохранения.
-    Оно исчезает, когда вы нажмёте «Удалить» или пользователь закроет баннер вручную.
+  <div id="dcAnnounceStatus" style="font-size:13px;min-height:20px;font-weight:600;margin-bottom:10px"></div>
+
+  <!-- Предпросмотр -->
+  <div class="ann-section">
+    <div class="ann-section-title">👁️ Предпросмотр</div>
+    <div id="dcAnnouncePreviewWrap" style="border-radius:8px;overflow:hidden;min-height:50px;position:relative">
+      <div id="dcAnnouncePreview" style="padding:12px 16px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;font-size:14px;font-weight:600;display:flex;align-items:center;gap:8px;word-break:break-word">
+        <span style="font-size:18px;flex-shrink:0">📣</span>
+        <span id="dcAnnouncePreviewText" style="flex:1">Ваше уведомление появится здесь...</span>
+        <button id="dcAnnouncePreviewClose" style="flex-shrink:0;background:rgba(255,255,255,.2);border:none;border-radius:50%;width:22px;height:22px;color:#fff;cursor:pointer;font-size:13px;line-height:1">✕</button>
+      </div>
+    </div>
   </div>
 </div>
 
+
+
+<!-- ══ PANEL: USERS ══ -->
+<div id="dcPanel_users" style="display:none;flex-direction:column;overflow-y:auto;min-height:0;flex:1;padding:20px">
+<style>
+  .usr-card{background:#fff;border:1.5px solid #e5e7eb;border-radius:12px;padding:14px 16px;margin-bottom:10px;transition:box-shadow .2s}
+  .usr-card:hover{box-shadow:0 4px 16px rgba(0,0,0,.08)}
+  .usr-card.online{border-color:#10b981}
+  .usr-card.online .usr-dot{background:#10b981;box-shadow:0 0 6px #10b981}
+  .usr-dot{width:9px;height:9px;border-radius:50%;background:#9ca3af;flex-shrink:0}
+  .usr-name{font-size:14px;font-weight:700;color:#111}
+  .usr-meta{font-size:11px;color:#6b7280;margin-top:2px}
+  .usr-activity{font-size:12px;color:#374151;background:#f3f4f6;border-radius:6px;padding:4px 8px;margin-top:6px;line-height:1.4}
+  .usr-action-btn{padding:5px 12px;font-size:11px;font-weight:700;border-radius:6px;border:1.5px solid;cursor:pointer;transition:all .2s}
+  .usr-reload-btn{border-color:#3b82f6;color:#3b82f6;background:#eff6ff}
+  .usr-reload-btn:hover{background:#3b82f6;color:#fff}
+  .usr-logout-btn{border-color:#ef4444;color:#ef4444;background:#fff5f5}
+  .usr-logout-btn:hover{background:#ef4444;color:#fff}
+  .usr-msg-btn{border-color:#8b5cf6;color:#8b5cf6;background:#f5f3ff}
+  .usr-msg-btn:hover{background:#8b5cf6;color:#fff}
+  .usr-section-title{font-size:12px;font-weight:800;color:#667eea;text-transform:uppercase;letter-spacing:.5px;padding:6px 0;border-bottom:2px solid #e5e7eb;margin-bottom:12px}
+</style>
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
+    <h3 style="margin:0;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Управление пользователями
+    </h3>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button onclick="usrRefresh()" style="padding:6px 14px;font-size:12px;font-weight:700;border-radius:7px;border:1.5px solid #667eea;color:#667eea;background:#f0edff;cursor:pointer">🔄 Обновить</button>
+      <button onclick="usrReloadAll()" style="padding:6px 14px;font-size:12px;font-weight:700;border-radius:7px;border:1.5px solid #3b82f6;color:#3b82f6;background:#eff6ff;cursor:pointer">🔁 Перезагрузить всех</button>
+      <button onclick="usrBroadcastMsg()" style="padding:6px 14px;font-size:12px;font-weight:700;border-radius:7px;border:1.5px solid #8b5cf6;color:#8b5cf6;background:#f5f3ff;cursor:pointer">📨 Сообщение всем</button>
+    </div>
+  </div>
+
+  <!-- Stats bar -->
+  <div id="usrStatsBar" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+    <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;color:#16a34a">
+      🟢 Онлайн: <span id="usrCountOnline">—</span>
+    </div>
+    <div style="background:#f8f7ff;border:1.5px solid #c4b5fd;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;color:#667eea">
+      👥 Всего: <span id="usrCountTotal">—</span>
+    </div>
+    <div style="background:#fff7ed;border:1.5px solid #fed7aa;border-radius:8px;padding:8px 14px;font-size:12px;font-weight:700;color:#c2410c">
+      ⏱️ Обновлено: <span id="usrLastUpdate">—</span>
+    </div>
+  </div>
+
+  <!-- Filters -->
+  <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+    <button class="ann-effect-btn active" onclick="usrSetFilter('all')" id="usrFilter_all">Все</button>
+    <button class="ann-effect-btn" onclick="usrSetFilter('online')" id="usrFilter_online">🟢 Онлайн</button>
+    <button class="ann-effect-btn" onclick="usrSetFilter('idle')" id="usrFilter_idle">⏸️ Неактивны</button>
+  </div>
+
+  <!-- Users list -->
+  <div id="usrList" style="flex:1" onclick="usrHandleClick(event)">
+    <div style="text-align:center;color:#9ca3af;padding:40px 20px;font-size:13px">
+      Нажмите «Обновить» для загрузки данных пользователей
+    </div>
+  </div>
+</div>
 
 <!-- ── PANEL: TIMINGS ── -->
 <div id="dcPanel_timings" style="display:none;flex-direction:column;overflow:hidden;min-height:0">
@@ -3108,7 +3288,7 @@ function closeDevConsole() {
 function dcApplyAccessMode(restricted) {
   _devConsoleRestricted = restricted;
   // Обычная консоль — скрываем полные вкладки в ограниченном режиме
-  var fullTabs = ['terminal','export','memory','thanks'];
+  var fullTabs = ['terminal','export','memory','thanks','users'];
   fullTabs.forEach(function(t){
     var btn = document.getElementById('dcTab_'+t);
     if(btn) btn.style.display = restricted ? 'none' : '';
@@ -3126,7 +3306,7 @@ function dcApplyAccessMode(restricted) {
 function devSwitchTab(tab) {
   // В ограниченном режиме разрешены только logs и timings
   if (_devConsoleRestricted && tab !== 'logs' && tab !== 'timings') return;
-  ['logs','terminal','timings','export','memory','thanks','announce'].forEach(function(t) {
+  ['logs','terminal','timings','export','memory','thanks','announce','users'].forEach(function(t) {
     var panel = document.getElementById('dcPanel_'+t);
     var btn   = document.getElementById('dcTab_'+t);
     if (!panel || !btn) return;
@@ -3141,6 +3321,7 @@ function devSwitchTab(tab) {
   if (tab === 'memory') dcRenderMemory();
   if (tab === 'logs') dcRenderLogChannelBar();
   if (tab === 'announce') dcRenderAnnounce();
+  if (tab === 'users') { usrRefresh(); _presenceWrite(); }
   if (tab === 'thanks') {
     var el = document.getElementById('dcThanksCount');
     if (el) el.textContent = parseInt(localStorage.getItem('thanksCount')||'0');
@@ -9120,6 +9301,426 @@ function zRatingRedraw(){
 // ANNOUNCE — уведомления для всех пользователей
 // ═══════════════════════════════════════════════════════
 var _AT_ANNOUNCE_KEY = 'at_announce_v1';
+// Загружаем настройки уведомлений из LS при старте
+try {
+  var _savedAnnSettings = JSON.parse(localStorage.getItem('at_announce_settings') || 'null');
+  if (_savedAnnSettings) window._annCurrentSettings = _savedAnnSettings;
+} catch(e) {}
+
+
+// ── Announce Settings ──────────────────────────────────────────
+var _annSettings = {
+  mode: 'banner',       // 'banner' | 'fullscreen'
+  closable: true,       // можно ли закрыть
+  effect: 'none',       // 'none'|'pulse'|'shake'|'bounce'|'glow'
+  color: 'purple',      // цвет фона
+  fontSize: 'md',       // 'sm'|'md'|'lg'|'xl'
+  fontFamily: 'inherit' // шрифт
+};
+
+var _ANN_COLORS = {
+  purple: 'linear-gradient(135deg,#667eea,#764ba2)',
+  red:    'linear-gradient(135deg,#ef4444,#dc2626)',
+  green:  'linear-gradient(135deg,#10b981,#059669)',
+  orange: 'linear-gradient(135deg,#f59e0b,#d97706)',
+  blue:   'linear-gradient(135deg,#3b82f6,#2563eb)',
+  dark:   'linear-gradient(135deg,#1f2937,#111827)'
+};
+var _ANN_FONT_SIZES = { sm: '12px', md: '14px', lg: '17px', xl: '22px' };
+
+function annSetMode(mode) {
+  _annSettings.mode = mode;
+  ['banner','fullscreen'].forEach(function(m){
+    var b = document.getElementById('annModeBtn_'+m);
+    if(b) b.classList.toggle('active', m===mode);
+  });
+  dcAnnouncePreviewUpdate();
+}
+function annSetClosable(val) {
+  _annSettings.closable = val;
+  var b1 = document.getElementById('annClosableBtn_yes');
+  var b2 = document.getElementById('annClosableBtn_no');
+  if(b1) b1.classList.toggle('active', val===true);
+  if(b2) b2.classList.toggle('active', val===false);
+  var closeBtn = document.getElementById('dcAnnouncePreviewClose');
+  if(closeBtn) closeBtn.style.display = val ? '' : 'none';
+  dcAnnouncePreviewUpdate();
+}
+function annSetEffect(fx) {
+  _annSettings.effect = fx;
+  ['none','pulse','shake','bounce','glow'].forEach(function(f){
+    var b = document.getElementById('annFx_'+f);
+    if(b) b.classList.toggle('active', f===fx);
+  });
+  dcAnnouncePreviewUpdate();
+}
+function annSetColor(color) {
+  _annSettings.color = color;
+  Object.keys(_ANN_COLORS).forEach(function(c){
+    var b = document.getElementById('annColor_'+c);
+    if(b) b.classList.toggle('active', c===color);
+  });
+  dcAnnouncePreviewUpdate();
+}
+function annSetFontSize(sz) {
+  _annSettings.fontSize = sz;
+  ['sm','md','lg','xl'].forEach(function(s){
+    var b = document.getElementById('annSz_'+s);
+    if(b) b.classList.toggle('active', s===sz);
+  });
+  dcAnnouncePreviewUpdate();
+}
+
+function dcAnnouncePreviewUpdate() {
+  var ta = document.getElementById('dcAnnounceText');
+  var ptext = document.getElementById('dcAnnouncePreviewText');
+  var pwrap = document.getElementById('dcAnnouncePreview');
+  var pclose = document.getElementById('dcAnnouncePreviewClose');
+  var ff = document.getElementById('annFontFamily');
+  if(ff) _annSettings.fontFamily = ff.value;
+  var text = ta ? ta.value.trim() : '';
+  if(ptext) ptext.textContent = text || 'Ваше уведомление появится здесь...';
+  if(pwrap) {
+    pwrap.style.background = _ANN_COLORS[_annSettings.color] || _ANN_COLORS.purple;
+    pwrap.style.fontSize = _ANN_FONT_SIZES[_annSettings.fontSize] || '14px';
+    pwrap.style.fontFamily = _annSettings.fontFamily;
+    // Эффект
+    pwrap.classList.remove('ann-fx-pulse','ann-fx-shake','ann-fx-bounce','ann-fx-glow');
+    if(_annSettings.effect !== 'none') pwrap.classList.add('ann-fx-'+_annSettings.effect);
+    // Fullscreen mode preview
+    var wrap = document.getElementById('dcAnnouncePreviewWrap');
+    if(wrap) {
+      if(_annSettings.mode === 'fullscreen') {
+        pwrap.style.minHeight = '120px';
+        pwrap.style.flexDirection = 'column';
+        pwrap.style.justifyContent = 'center';
+        pwrap.style.textAlign = 'center';
+        pwrap.style.fontSize = _ANN_FONT_SIZES[_annSettings.fontSize==='sm'?'md':_annSettings.fontSize==='md'?'lg':_annSettings.fontSize==='lg'?'xl':'xl'] || '20px';
+      } else {
+        pwrap.style.minHeight = '';
+        pwrap.style.flexDirection = '';
+        pwrap.style.justifyContent = '';
+        pwrap.style.textAlign = '';
+        pwrap.style.fontSize = _ANN_FONT_SIZES[_annSettings.fontSize] || '14px';
+      }
+    }
+  }
+  if(pclose) pclose.style.display = _annSettings.closable ? '' : 'none';
+}
+
+function dcAnnouncePreviewShow() {
+  var ta = document.getElementById('dcAnnounceText');
+  var text = ta ? ta.value.trim() : '';
+  if(!text) { alert('Введите текст уведомления для предпросмотра'); return; }
+  _atAnnounceUpdate(text, _annSettings);
+}
+
+
+// ═══════════════════════════════════════════════════════════════
+// USER PRESENCE SYSTEM — мониторинг пользователей
+// Каждый ПК пишет heartbeat каждые 30 сек в shared/presence/{pcId}
+// ═══════════════════════════════════════════════════════════════
+var _presencePcId = (function(){
+  var id = localStorage.getItem('at_pc_id');
+  if (!id) { id = 'pc_' + Math.random().toString(36).slice(2,10); localStorage.setItem('at_pc_id', id); }
+  return id;
+})();
+var _presenceTimer = null;
+var _presenceCurrentPage = 'home';
+var _presenceCurrentAction = 'Ожидание';
+
+function _presenceWrite() {
+  if (!window._fbDb || !window.SHARED_PATH) return;
+  var profile = typeof pfGetCurrent === 'function' ? pfGetCurrent() : null;
+  var data = {
+    pcId: _presencePcId,
+    profileName: profile ? (profile.name || 'Без имени') : 'Не вошёл',
+    profileId: profile ? profile.id : null,
+    profileAvatar: profile ? (profile.avatarEmoji || profile.avatarImg || '👤') : '👤',
+    page: _presenceCurrentPage,
+    action: _presenceCurrentAction,
+    ts: Date.now(),
+    online: true
+  };
+  try {
+    window._fbDb.ref(window.SHARED_PATH + '/presence/' + _presencePcId).set(data);
+  } catch(e) {}
+}
+
+function _presenceSetPage(page) {
+  _presenceCurrentPage = page;
+  _presenceWrite();
+}
+
+function _presenceSetAction(action) {
+  _presenceCurrentAction = action;
+}
+
+function _presenceStart() {
+  _presenceWrite();
+  if (_presenceTimer) clearInterval(_presenceTimer);
+  _presenceTimer = setInterval(_presenceWrite, 25000); // каждые 25 сек
+  // При закрытии страницы — отмечаем offline
+  window.addEventListener('beforeunload', function() {
+    try {
+      if (window._fbDb && window.SHARED_PATH) {
+        window._fbDb.ref(window.SHARED_PATH + '/presence/' + _presencePcId + '/online').set(false);
+        window._fbDb.ref(window.SHARED_PATH + '/presence/' + _presencePcId + '/ts').set(Date.now());
+      }
+    } catch(e) {}
+  });
+}
+
+// Запускаем после Firebase готовности
+window.addEventListener('AT_fb_ready', function() {
+  setTimeout(_presenceStart, 500);
+});
+
+// ═══════════════════════════════════════════════════════════════
+// ADMIN: Users Panel Logic
+// ═══════════════════════════════════════════════════════════════
+var _usrFilter = 'all';
+var _usrData = {};
+
+var _PAGE_NAMES = {
+  home:'🏠 Главная', qr:'🏷️ ШК', trbx:'📦 Коробки', clear:'🧹 Очистка',
+  search:'🔍 Декларация', filling:'📋 Наполнение', boxes:'🗃️ История коробок',
+  zayac:'🐰 Зайцы', tracking:'🎯 Отслеживание', prevention:'🛡️ Предотвращение'
+};
+
+function usrSetFilter(f) {
+  _usrFilter = f;
+  ['all','online','idle'].forEach(function(id){
+    var b = document.getElementById('usrFilter_'+id);
+    if(b) b.classList.toggle('active', id===f);
+  });
+  usrRender();
+}
+
+function usrRefresh() {
+  if (!window._fbDb || !window.SHARED_PATH) {
+    alert('Firebase не подключён');
+    return;
+  }
+  var list = document.getElementById('usrList');
+  if(list) list.innerHTML = '<div style="text-align:center;color:#9ca3af;padding:30px;font-size:13px">⏳ Загружаем данные...</div>';
+  
+  window._fbDb.ref(window.SHARED_PATH + '/presence').once('value', function(snap) {
+    _usrData = snap.val() || {};
+    usrRender();
+    var now = new Date();
+    var el = document.getElementById('usrLastUpdate');
+    if(el) el.textContent = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0') + ':' + now.getSeconds().toString().padStart(2,'0');
+  }, function(err) {
+    var list = document.getElementById('usrList');
+    if(list) list.innerHTML = '<div style="text-align:center;color:#ef4444;padding:30px;font-size:13px">❌ Ошибка Firebase: ' + (err.message||err) + '</div>';
+  });
+  
+  // Также подписываемся на real-time обновления
+  if (!window._usrPresenceSubscribed) {
+    window._usrPresenceSubscribed = true;
+    window._fbDb.ref(window.SHARED_PATH + '/presence').on('child_changed', function(snap) {
+      _usrData[snap.key] = snap.val();
+      usrRender();
+    });
+    window._fbDb.ref(window.SHARED_PATH + '/presence').on('child_added', function(snap) {
+      _usrData[snap.key] = snap.val();
+      usrRender();
+    });
+    window._fbDb.ref(window.SHARED_PATH + '/presence').on('child_removed', function(snap) {
+      delete _usrData[snap.key];
+      usrRender();
+    });
+  }
+}
+
+function usrRender() {
+  var list = document.getElementById('usrList');
+  if (!list) return;
+  var now = Date.now();
+  var ONLINE_THRESHOLD = 60000; // 60 сек = онлайн
+  var IDLE_THRESHOLD = 300000;  // 5 мин = неактивен
+  
+  var users = Object.values(_usrData).sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
+  
+  // Фильтрация
+  users = users.filter(function(u) {
+    var age = now - (u.ts || 0);
+    var isOnline = u.online && age < ONLINE_THRESHOLD;
+    var isIdle = age >= ONLINE_THRESHOLD && age < IDLE_THRESHOLD;
+    if (_usrFilter === 'online') return isOnline;
+    if (_usrFilter === 'idle') return isIdle;
+    return true;
+  });
+  
+  // Статистика
+  var onlineCount = Object.values(_usrData).filter(function(u){ return u.online && (now-(u.ts||0)) < ONLINE_THRESHOLD; }).length;
+  var totalCount = Object.values(_usrData).length;
+  var elOn = document.getElementById('usrCountOnline');
+  var elTot = document.getElementById('usrCountTotal');
+  if(elOn) elOn.textContent = onlineCount;
+  if(elTot) elTot.textContent = totalCount;
+  
+  if (!users.length) {
+    list.innerHTML = '<div style="text-align:center;color:#9ca3af;padding:40px 20px;font-size:13px">Нет пользователей в базе</div>';
+    return;
+  }
+  
+  var html = '';
+  users.forEach(function(u) {
+    var age = now - (u.ts || 0);
+    var isOnline = u.online && age < ONLINE_THRESHOLD;
+    var isIdle = age >= ONLINE_THRESHOLD && age < IDLE_THRESHOLD;
+    var isMe = u.pcId === _presencePcId;
+    var statusText = isOnline ? '🟢 Онлайн' : (isIdle ? '⏸️ Неактивен ' + Math.round(age/60000) + ' мин' : '⚫ Офлайн ' + _usrFormatAge(age));
+    var pageName = _PAGE_NAMES[u.page] || ('📄 ' + (u.page||'?'));
+    var avatar = u.profileAvatar || '👤';
+    // Если аватар — это URL картинки
+    var avatarHtml = (avatar && avatar.startsWith('data:')) 
+      ? '<img src="'+avatar+'" style="width:34px;height:34px;border-radius:50%;object-fit:cover">'
+      : '<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">'+avatar+'</div>';
+    
+    html += '<div class="usr-card' + (isOnline?' online':'') + '" id="usrCard_'+u.pcId+'">';
+    html += '<div style="display:flex;align-items:center;gap:10px">';
+    html += avatarHtml;
+    html += '<div style="flex:1;min-width:0">';
+    html += '<div style="display:flex;align-items:center;gap:7px">';
+    html += '<div class="usr-dot"></div>';
+    html += '<span class="usr-name">' + (u.profileName||'Неизвестно') + (isMe?' <span style="font-size:10px;background:#667eea;color:#fff;border-radius:4px;padding:1px 5px">ВЫ</span>':'') + '</span>';
+    html += '</div>';
+    html += '<div class="usr-meta">' + statusText + ' &nbsp;|&nbsp; ПК: <code style="font-size:10px;background:#f3f4f6;padding:1px 4px;border-radius:3px">' + (u.pcId||'?') + '</code></div>';
+    html += '</div>';
+    html += '</div>';
+    
+    // Текущая активность
+    html += '<div class="usr-activity">';
+    html += '📍 Страница: <b>' + pageName + '</b>';
+    if (u.action && u.action !== 'Ожидание') html += ' &nbsp;•&nbsp; ⚡ ' + u.action;
+    if (u.ts) html += ' &nbsp;•&nbsp; 🕒 ' + new Date(u.ts).toLocaleTimeString('ru-RU');
+    html += '</div>';
+    
+    // Действия
+    if (!isMe) {
+      html += '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">';
+      var _eid = String(u.pcId).replace(/"/g,'');
+      var _enm = String(u.profileName||'').replace(/"/g,'');
+      html += '<button class="usr-action-btn usr-reload-btn" data-pcid="' + _eid + '" data-act="reload">🔁 Перезагрузить</button>';
+      html += '<button class="usr-action-btn usr-msg-btn" data-pcid="' + _eid + '" data-name="' + _enm + '" data-act="msg">💬 Сообщение</button>';
+      html += '<button class="usr-action-btn usr-logout-btn" data-pcid="' + _eid + '" data-act="logout">🚪 Выйти</button>';
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  list.innerHTML = html;
+}
+
+function _usrFormatAge(ms) {
+  if (ms < 60000) return Math.round(ms/1000) + ' сек';
+  if (ms < 3600000) return Math.round(ms/60000) + ' мин';
+  return Math.round(ms/3600000) + ' ч';
+}
+
+function usrReloadAll() {
+  if (!confirm('Перезагрузить страницу у ВСЕХ пользователей?')) return;
+  if (!window._fbDb || !window.SHARED_PATH) return;
+  window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').set({
+    cmd: 'reload', target: 'all', ts: Date.now(), by: _presencePcId
+  });
+  alert('✅ Команда отправлена всем ПК');
+}
+
+function usrReloadPc(pcId) {
+  if (!confirm('Перезагрузить страницу у ПК ' + pcId + '?')) return;
+  if (!window._fbDb || !window.SHARED_PATH) return;
+  window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').set({
+    cmd: 'reload', target: pcId, ts: Date.now(), by: _presencePcId
+  });
+}
+
+function usrForceLogout(pcId) {
+  if (!confirm('Принудительно выйти из профиля на ПК ' + pcId + '?')) return;
+  if (!window._fbDb || !window.SHARED_PATH) return;
+  window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').set({
+    cmd: 'logout', target: pcId, ts: Date.now(), by: _presencePcId
+  });
+}
+
+function usrSendMsg(pcId, profileNameEncoded) {
+  var name = decodeURIComponent(profileNameEncoded);
+  var msg = prompt('Сообщение для ' + name + ' (ПК ' + pcId + '):');
+  if (!msg || !msg.trim()) return;
+  if (!window._fbDb || !window.SHARED_PATH) return;
+  window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').set({
+    cmd: 'message', target: pcId, message: msg.trim(), ts: Date.now(), by: _presencePcId
+  });
+}
+
+function usrBroadcastMsg() {
+  var msg = prompt('Сообщение для ВСЕХ пользователей:');
+  if (!msg || !msg.trim()) return;
+  if (!window._fbDb || !window.SHARED_PATH) return;
+  window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').set({
+    cmd: 'message', target: 'all', message: msg.trim(), ts: Date.now(), by: _presencePcId
+  });
+}
+
+function usrHandleClick(e) {
+  var btn = e.target.closest('[data-act]');
+  if (!btn) return;
+  var act  = btn.getAttribute('data-act');
+  var pcId = btn.getAttribute('data-pcid');
+  var name = btn.getAttribute('data-name') || '';
+  if (act === 'reload') usrReloadPc(pcId);
+  else if (act === 'msg')    usrSendMsg(pcId, name);
+  else if (act === 'logout') usrForceLogout(pcId);
+}
+
+// ─── Слушатель admin команд (все ПК слушают и выполняют) ────────
+window.addEventListener('AT_fb_ready', function() {
+  setTimeout(function() {
+    if (!window._fbDb || !window.SHARED_PATH) return;
+    var lastCmdTs = Date.now();
+    window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').on('value', function(snap) {
+      var cmd = snap.val();
+      if (!cmd || !cmd.ts || cmd.ts <= lastCmdTs) return;
+      if (cmd.by === _presencePcId) return; // игнорируем свои команды
+      lastCmdTs = cmd.ts;
+      var isForMe = (cmd.target === 'all' || cmd.target === _presencePcId);
+      if (!isForMe) return;
+      
+      if (cmd.cmd === 'reload') {
+        console.log('[ADMIN] Получена команда перезагрузки');
+        setTimeout(function() { location.reload(); }, 500);
+        
+      } else if (cmd.cmd === 'logout') {
+        console.log('[ADMIN] Получена команда выхода из профиля');
+        if (typeof pfLogout === 'function') pfLogout();
+        
+      } else if (cmd.cmd === 'message') {
+        // Показываем как уведомление-баннер
+        if (typeof _atAnnounceUpdate === 'function') {
+          _atAnnounceUpdate('💬 Сообщение от администратора: ' + cmd.message, {
+            mode: 'banner', closable: true, effect: 'pulse', color: 'purple', fontSize: 'md'
+          });
+        } else {
+          alert('Сообщение от администратора:\n' + cmd.message);
+        }
+      }
+    });
+  }, 800);
+});
+
+// Обновляем presence при навигации — перехватываем nav()
+var _origNav = window.nav;
+window.nav = function(page) {
+  _presenceCurrentPage = page;
+  _presenceCurrentAction = 'Ожидание';
+  if (typeof _origNav === 'function') _origNav(page);
+  setTimeout(_presenceWrite, 100);
+};
+
+// Обновляем при открытии вкладки users
+var _origDevSwitchTab = window.devSwitchTab;
 
 function dcRenderAnnounce() {
   var ta = document.getElementById('dcAnnounceText');
@@ -9154,6 +9755,13 @@ function dcAnnounceAction(action) {
     if (statusEl) { statusEl.innerHTML = '<span style="color:#f59e0b">⚠️ Введите текст уведомления</span>'; }
     return;
   }
+  // Сохраняем настройки отображения
+  if(action === 'save' && typeof _annSettings !== 'undefined') {
+    var ff = document.getElementById('annFontFamily');
+    if(ff) _annSettings.fontFamily = ff.value;
+    window._annCurrentSettings = JSON.parse(JSON.stringify(_annSettings));
+    try { localStorage.setItem('at_announce_settings', JSON.stringify(_annSettings)); } catch(e) {}
+  }
   // 1. Сохраняем локально немедленно
   try {
     if (text) localStorage.setItem(_AT_ANNOUNCE_KEY, text);
@@ -9165,7 +9773,8 @@ function dcAnnounceAction(action) {
     var fbPath = (window.SHARED_PATH || 'shared') + '/announce/msg';
     var ref = db.ref(fbPath);
     if (text) {
-      var payload = { text: text, ts: Date.now(), author: 'admin' };
+      var settings = window._annCurrentSettings || {};
+      var payload = { text: text, ts: Date.now(), author: 'admin', settings: settings };
       console.log('[ANNOUNCE] Saving to Firebase path:', fbPath, 'payload:', JSON.stringify(payload));
       ref.set(payload).then(function(){
         console.log('[ANNOUNCE] ✅ Saved to Firebase OK');
@@ -9243,20 +9852,57 @@ function _parseAnnounceVal(val) {
   }
   return '';
 }
-function _atAnnounceUpdate(text) {
+function _atHideBanner() {
+  var b = document.getElementById('atAnnounceBanner');
+  if (b) b.style.display = 'none';
+}
+
+function _atAnnounceUpdate(text, settings) {
   var banner = document.getElementById('atAnnounceBanner');
   if (!banner) return;
+  // Применяем настройки (из аргумента или из сохранённых)
+  var s = settings || window._annCurrentSettings || {};
+  var mode = s.mode || 'banner';
+  var closable = (s.closable !== false);
+  var effect = s.effect || 'none';
+  var color = s.color || 'purple';
+  var fontSize = s.fontSize || 'md';
+  var fontFamily = s.fontFamily || 'inherit';
+  var ANN_COLORS = {
+    purple:'linear-gradient(135deg,#667eea,#764ba2)',
+    red:'linear-gradient(135deg,#ef4444,#dc2626)',
+    green:'linear-gradient(135deg,#10b981,#059669)',
+    orange:'linear-gradient(135deg,#f59e0b,#d97706)',
+    blue:'linear-gradient(135deg,#3b82f6,#2563eb)',
+    dark:'linear-gradient(135deg,#1f2937,#111827)'
+  };
+  var ANN_SIZES = {sm:'12px',md:'14px',lg:'17px',xl:'22px'};
   if (text && text.trim()) {
     var safe = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-    banner.innerHTML = '<span style="font-size:18px;margin-right:8px">📣</span>'
-      + '<span style="flex:1">' + safe + '</span>'
-      + '<button onclick="this.parentNode.style.display=\'none\'" title="Закрыть"'
-      + ' style="flex-shrink:0;background:rgba(255,255,255,0.25);border:none;color:#fff;'
-      + 'cursor:pointer;font-size:18px;width:28px;height:28px;border-radius:50%;'
-      + 'display:flex;align-items:center;justify-content:center;margin-left:12px;line-height:1">✕</button>';
-    banner.style.display = 'flex';
+    var bg = ANN_COLORS[color] || ANN_COLORS.purple;
+    var fs = ANN_SIZES[fontSize] || '14px';
+    var closeBtn = closable
+      ? '<button onclick="_atHideBanner()" title="Закрыть" style="flex-shrink:0;background:rgba(255,255,255,.2);border:none;border-radius:50%;width:26px;height:26px;color:#fff;cursor:pointer;font-size:14px;line-height:1;margin-left:8px">✕</button>'
+      : '';
+    var fxClass = effect !== 'none' ? ' ann-fx-'+effect : '';
+    if (mode === 'fullscreen') {
+      // Fullscreen overlay
+      banner.style.cssText = 'display:flex!important;position:fixed;inset:0;z-index:99999;background:'+bg+';color:#fff;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px;font-family:'+fontFamily+';font-size:calc('+fs+' * 1.5);font-weight:700;box-shadow:none';
+      banner.className = fxClass.trim();
+      banner.innerHTML = '<div style="font-size:60px;margin-bottom:20px">📣</div>'
+        + '<div style="max-width:700px;line-height:1.5;word-break:break-word">' + safe + '</div>'
+        + (closable ? '<button onclick="_atHideBanner()" style="margin-top:30px;background:rgba(255,255,255,.2);border:2px solid rgba(255,255,255,.5);color:#fff;padding:10px 32px;border-radius:30px;font-size:15px;font-weight:700;cursor:pointer">✕ Закрыть</button>' : '');
+    } else {
+      // Banner mode
+      banner.style.cssText = 'display:flex!important;position:fixed;bottom:0;left:0;right:0;z-index:9990;padding:12px 20px;background:'+bg+';color:#fff;font-size:'+fs+';font-weight:600;box-shadow:0 -3px 16px rgba(99,102,241,.5);min-height:48px;align-items:center;word-break:break-word;gap:8px;font-family:'+fontFamily;
+      banner.className = fxClass.trim();
+      banner.innerHTML = '<span style="font-size:18px;flex-shrink:0">📣</span>'
+        + '<span style="flex:1">' + safe + '</span>'
+        + closeBtn;
+    }
   } else {
     banner.style.display = 'none';
+    banner.className = '';
   }
 }
 
@@ -9854,7 +10500,9 @@ pfLoad._syncFromFirebase = function(){
     _pfFbLoaded = true; // Firebase загружен — блокируем LS override
     if(changed || _pfProfiles.length !== fbIds.length){
       try{ localStorage.setItem(PF_LS, JSON.stringify(_pfProfiles)); }catch(e){}
-      if(typeof pfRenderScreen==='function') try{ pfRenderScreen(); }catch(e){}
+      // Обновляем UI только если пользователь НЕ залогинен
+      // Если залогинен — не показываем экран логина (избегаем выброса из профиля)
+      if(!_pfCurrentId && typeof pfRenderScreen==='function') try{ pfRenderScreen(); }catch(e){}
       if(document.getElementById('profileMgrModal') && document.getElementById('profileMgrModal').classList.contains('active')){
         if(typeof pfManageAll==='function') try{ pfManageAll(); }catch(e){}
       }
@@ -12408,7 +13056,7 @@ const TRACKING_MAX = 50;
     document.addEventListener('visibilitychange', function(){
         if(document.visibilityState !== 'visible') return;
         // Синхронизируем профили при возврате на вкладку
-        if(typeof pfLoad._syncFromFirebase==='function') try{ pfLoad._syncFromFirebase(); }catch(e){}
+        if(typeof pfLoad!=='undefined' && typeof pfLoad._syncFromFirebase==='function') try{ pfLoad._syncFromFirebase(); }catch(e){}
         var now = Date.now();
         trackingItems.forEach(function(item){
             if(item.paused) return;
