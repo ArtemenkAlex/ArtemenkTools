@@ -1088,7 +1088,7 @@ _rtListeners['profiles'] = function(action, id, data) {
     } else {
       window._pfProfiles.push(data);
     }
-    try { localStorage.setItem('artemenkProfiles', JSON.stringify(window._pfProfiles)); } catch(e) {}
+    (typeof AT_dbSet==='function'?AT_dbSet('artemenkProfiles',JSON.stringify(window._pfProfiles)).catch(function(){}):null);try{localStorage.setItem('artemenkProfiles',JSON.stringify(window._pfProfiles));}catch(e2){}
     // Обновляем UI — только если уже инициализирован
     if (typeof pfUpdateBadge === 'function') try { pfUpdateBadge(); } catch(e) {}
     if (document.getElementById('profileMgrModal') && document.getElementById('profileMgrModal').classList.contains('active')) {
@@ -1099,7 +1099,7 @@ _rtListeners['profiles'] = function(action, id, data) {
     var before = window._pfProfiles.length;
     window._pfProfiles = window._pfProfiles.filter(function(p){ return String(p.id) !== String(id); });
     if (window._pfProfiles.length !== before) {
-      try { localStorage.setItem('artemenkProfiles', JSON.stringify(window._pfProfiles)); } catch(e) {}
+      (typeof AT_dbSet==='function'?AT_dbSet('artemenkProfiles',JSON.stringify(window._pfProfiles)).catch(function(){}):null);try{localStorage.setItem('artemenkProfiles',JSON.stringify(window._pfProfiles));}catch(e2){}
       if (String(id) === String(window._pfCurrentId) && typeof pfLogout === 'function') {
         alert('Ваш профиль был удалён с другого устройства.');
         pfLogout();
@@ -1422,7 +1422,7 @@ function initFirebase(){
           try {
             var pData = typeof val.d==='string' ? JSON.parse(val.d) : val.d;
             _timingPresets[id] = pData;
-            localStorage.setItem('at_timing_presets', JSON.stringify(_timingPresets));
+            _saveTimingPresets();
             if (typeof _dcTimingsInited !== 'undefined') { _dcTimingsInited = false; }
             if (typeof floatRenderPresetBar === 'function') try { floatRenderPresetBar(); } catch(e){}
           } catch(e){}
@@ -2531,6 +2531,9 @@ window.AT_importData = async function(file){
 <button onclick="boxesSelectAll('boxes')" style="padding:5px 12px;background:#7B2FF7;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">☑️ Все коробки</button>
 <button onclick="boxesSelectAll('shks')" style="padding:5px 12px;background:#4facfe;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">☑️ Все ШК</button>
 <button onclick="boxesClearSelection()" style="padding:5px 12px;background:#eee;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600">✗ Снять все</button>
+<button onclick="boxesSelectInvalid()" style="padding:5px 12px;background:#c62828;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700" title="Выбрать ШК с неверным идентификатором (крестик)">❌ Выбрать неверные</button>
+<button onclick="boxesSelectNoMx()" style="padding:5px 12px;background:#1565c0;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700" title="Выбрать ШК без кол-ва строк и/или последнего МХ">📊 Выбрать ШК без МХ</button>
+<button onclick="boxesSelectNoWbInfo()" style="padding:5px 12px;background:#6a1b9a;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700" title="Выбрать ШК без фото и/или названия">🖼 Выбрать ШК без фото и/или названий</button>
 <button onclick="boxesRunSelectedDecl()" style="padding:5px 14px;background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700">▶ Декларации выбранных коробок</button>
 <button onclick="boxesRunSelectedHist()" style="padding:5px 14px;background:linear-gradient(135deg,#ff9800,#e65100);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700">▶ История выбранных ШК</button>
 <button onclick="boxesRunSelectedWbInfo()" style="padding:5px 14px;background:linear-gradient(135deg,#9c27b0,#6a0dad);color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700">🖼 Название и фото выбранных</button>
@@ -3288,13 +3291,13 @@ function closeDevConsole() {
 function dcApplyAccessMode(restricted) {
   _devConsoleRestricted = restricted;
   // Обычная консоль — скрываем полные вкладки в ограниченном режиме
-  var fullTabs = ['terminal','export','memory','thanks','users'];
+  var fullTabs = ['terminal','export','memory','thanks','users','announce'];
   fullTabs.forEach(function(t){
     var btn = document.getElementById('dcTab_'+t);
     if(btn) btn.style.display = restricted ? 'none' : '';
-    // Также плавающая консоль
+    // Также плавающая консоль — показываем только в full режиме
     var fbtn = document.getElementById('floatTab_'+t);
-    if(fbtn) fbtn.style.display = restricted ? 'none' : '';
+    if(fbtn) fbtn.style.display = restricted ? 'none' : 'inline-flex';
   });
   var hdr = document.getElementById('dcModeLabel');
   if(hdr) hdr.textContent = restricted ? '🔒 Ограниченный режим' : '';
@@ -3531,6 +3534,10 @@ var _timingPresets = {}; // { presetName: {key:val,...} }
 
   // Загружаем пресеты
   try { _timingPresets = JSON.parse(localStorage.getItem('at_timing_presets') || '{}'); } catch(e) {}
+  // Fallback: загружаем из IDB если LS пустой
+  if (typeof AT_dbGet === 'function' && !Object.keys(_timingPresets||{}).length) {
+    AT_dbGet('at_timing_presets').then(function(v){ try{ _timingPresets=JSON.parse(v||'{}'); }catch(e){} }).catch(function(){});
+  }
 })();
 window.AT_TIMINGS = DC_TIMINGS;
 
@@ -3801,13 +3808,21 @@ function dcTimingSave(which) {
 }
 
 // Пресеты
+// Сохранение пресетов — в IDB (localStorage часто переполнен)
+function _saveTimingPresets() {
+  try { _saveTimingPresets(); } catch(e) {}
+  if (typeof AT_dbSet === 'function') {
+    AT_dbSet('at_timing_presets', JSON.stringify(_timingPresets)).catch(function(){});
+  }
+}
+
 function dcSavePreset(which) {
   var name = prompt('Введите название пресета:');
   if (!name || !name.trim()) return;
   name = name.trim();
   var presetData = Object.assign({}, DC_LOCAL_TIMINGS);
   _timingPresets[name] = presetData;
-  localStorage.setItem('at_timing_presets', JSON.stringify(_timingPresets));
+  _saveTimingPresets();
   // Синхронизируем пресеты через Firebase для всех ПК
   if (typeof AT_rtPush === 'function') {
     try { AT_rtPush('timing_presets', name.replace(/[.#$[\]]/g,'_'), presetData); } catch(e){}
@@ -3836,7 +3851,7 @@ function dcDeletePreset(presetKey) {
   var displayName = presetKey.replace('__local','');
   if (!confirm('Удалить пресет «' + displayName + '»?')) return;
   delete _timingPresets[presetKey];
-  localStorage.setItem('at_timing_presets', JSON.stringify(_timingPresets));
+  _saveTimingPresets();
   _dcTimingsInited = false;
   dcRenderTimings(_dcCurrentTimingTab || 'global');
 }
@@ -3976,11 +3991,39 @@ async function dcRenderMemory() {
   html2 += '</div>';
 
   // IDB card
+  // Собираем детальный список IDB ключей
+  var idbKeys = [];
+  try {
+    var _idbFn2 = window.idbOpen || null;
+    var _db2 = _idbFn2 ? await _idbFn2() : await new Promise(function(r){ var rq=indexedDB.open('ArtemenkToolsDB'); rq.onsuccess=function(e){r(e.target.result);}; rq.onerror=function(){r(null);}; });
+    if (_db2) {
+      var idbAllItems = await new Promise(function(res) {
+        var tx3 = _db2.transaction('kv','readonly');
+        var req3 = tx3.objectStore('kv').getAll();
+        req3.onsuccess = function(){ res(req3.result||[]); };
+        req3.onerror = function(){ res([]); };
+      });
+      idbAllItems.forEach(function(r) {
+        var sz = 0; try { sz = JSON.stringify(r).length*2; } catch(e2){}
+        idbKeys.push({ k: r.k, size: sz });
+      });
+      idbKeys.sort(function(a,b){ return b.size-a.size; });
+    }
+  } catch(e2) {}
+
   html2 += '<div style="background:'+cardBg+';border:1.5px solid '+cardBrd+';border-radius:12px;padding:14px">';
   html2 += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>';
   html2 += '<span style="font-size:14px;font-weight:800;color:'+txtMain+'">IndexedDB</span></div>';
   html2 += '<div style="font-size:13px;color:'+txtMain+'">Объём: <b>'+fmtSize(idbUsed)+'</b> / Ключей: <b>'+idbCount+'</b></div>';
   html2 += barHtml(idbUsed, 500*1024*1024, '#4caf50');
+  if (idbKeys.length) {
+    html2 += '<details style="margin-top:8px"><summary style="cursor:pointer;font-size:12px;color:#4caf50;font-weight:700">📋 Содержимое IDB ('+idbKeys.length+' ключей)</summary>';
+    html2 += '<div style="margin-top:6px;display:grid;gap:3px;max-height:200px;overflow-y:auto">';
+    idbKeys.forEach(function(item){
+      html2 += '<div style="display:flex;justify-content:space-between;font-size:11px;color:'+txtSub+'"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:70%">'+item.k+'</span><b>'+fmtSize(item.size)+'</b></div>';
+    });
+    html2 += '</div></details>';
+  }
   html2 += '</div>';
 
   // LocalStorage card
@@ -5665,8 +5708,11 @@ function loadFillingHistory() {
 loadFillingHistory();
 
 function saveFillingHistory() {
-	try { localStorage.setItem('fillingHistory', JSON.stringify(fillingHistory.slice(0,20))); }
-	catch (e) { console.error('Error saving filling history:', e); }
+	try {
+		var data = JSON.stringify(fillingHistory.slice(0,50));
+		if (typeof AT_dbSet === 'function') { AT_dbSet('fillingHistory', data).catch(function(){}); }
+		else { localStorage.setItem('fillingHistory', data); }
+	} catch(e) { console.error('Error saving filling history:', e); }
 }
 
 function addToFillingHistory(tareValue, itemsData) {
@@ -5815,10 +5861,16 @@ function deleteFillingHistory(id) {
 	renderFillingHistory();
 }
 
-// Load declaration history from localStorage
+// Load declaration history from IDB (with LS fallback)
 function loadDeclarationHistory() {
 	const saved = localStorage.getItem('declarationHistory');
 	if (saved) { try { declarationHistory = JSON.parse(saved); } catch (e) { declarationHistory = []; } }
+	// Также загружаем из IDB (там данные актуальнее)
+	if (typeof AT_dbGet === 'function') {
+		AT_dbGet('declarationHistory').then(function(v) {
+			if (v) { try { declarationHistory = JSON.parse(v); } catch(e2) {} }
+		}).catch(function(){});
+	}
 	if(typeof AT_rtLoadLocal==='function'){
 		AT_rtLoadLocal('declaration', function(items){
 			items.forEach(function(item){
@@ -5852,8 +5904,14 @@ loadDeclarationHistory();
 
 // Save declaration history to localStorage
 function saveDeclarationHistory() {
-	try { localStorage.setItem('declarationHistory', JSON.stringify(declarationHistory.slice(0,20))); }
-	catch (e) { console.error('Error saving declaration history:', e); }
+	try {
+		var _dh = JSON.stringify(declarationHistory.slice(0,50));
+		if (typeof AT_dbSet === 'function') {
+			AT_dbSet('declarationHistory', _dh).catch(function(){});
+		} else {
+			localStorage.setItem('declarationHistory', _dh);
+		}
+	} catch(e) { console.error('Error saving declaration history:', e); }
 }
 
 // Add search to history
@@ -7224,7 +7282,7 @@ function saveTableData() {
 			savedTables.length = 10;
 		}
 		
-		localStorage.setItem('savedDeclarationTables', JSON.stringify(savedTables));
+		if(typeof AT_dbSet==='function'){AT_dbSet('savedDeclarationTables', JSON.stringify(savedTables)).catch(function(){});}else{try{localStorage.setItem('savedDeclarationTables', JSON.stringify(savedTables));}catch(e2){}}
 		
 		// Show success message
 		const btn = event.target;
@@ -11516,7 +11574,7 @@ const BOXES_MAX_HIST = 30;
 				}catch(e){}
 			});
 			boxesHistory.sort(function(a,b){return (b.id||0)-(a.id||0);});
-			try { localStorage.setItem(BOXES_HIST_KEY, JSON.stringify(boxesHistory.slice(0,15))); } catch(e){}
+			if(typeof AT_dbSet==='function'){AT_dbSet(BOXES_HIST_KEY, JSON.stringify(boxesHistory.slice(0,50))).catch(function(){});}else{try{localStorage.setItem(BOXES_HIST_KEY, JSON.stringify(boxesHistory.slice(0,15)));}catch(e2){}}
 		});
 	}
 	if(typeof AT_rtListen==='function'){
@@ -11526,12 +11584,12 @@ const BOXES_MAX_HIST = 30;
 				var idx=boxesHistory.findIndex(function(x){return x.id===data.id;});
 				if(idx>=0) boxesHistory[idx]=data; else boxesHistory.unshift(data);
 				boxesHistory.sort(function(a,b){return (b.id||0)-(a.id||0);});
-				try { localStorage.setItem(BOXES_HIST_KEY, JSON.stringify(boxesHistory.slice(0,15))); } catch(e){}
+				if(typeof AT_dbSet==='function'){AT_dbSet(BOXES_HIST_KEY, JSON.stringify(boxesHistory.slice(0,50))).catch(function(){});}else{try{localStorage.setItem(BOXES_HIST_KEY, JSON.stringify(boxesHistory.slice(0,15)));}catch(e2){}}
 				var hm = document.getElementById('boxesHistModal');
 				if(hm && hm.classList.contains('active')) try{ _boxesHistRender(); }catch(e){}
 			} else if(action==='remove'){
 				boxesHistory=boxesHistory.filter(function(x){return String(x.id)!==String(id);});
-				try { localStorage.setItem(BOXES_HIST_KEY, JSON.stringify(boxesHistory.slice(0,15))); } catch(e){}
+				if(typeof AT_dbSet==='function'){AT_dbSet(BOXES_HIST_KEY, JSON.stringify(boxesHistory.slice(0,50))).catch(function(){});}else{try{localStorage.setItem(BOXES_HIST_KEY, JSON.stringify(boxesHistory.slice(0,15)));}catch(e2){}}
 				var hm = document.getElementById('boxesHistModal');
 				if(hm && hm.classList.contains('active')) try{ _boxesHistRender(); }catch(e){}
 			}
@@ -11687,17 +11745,21 @@ function boxesLoad() {
 }
 
 function boxesDeleteMemory() {
-    // Require profile password
     var p = pfGetCurrent();
     if (!p) { alert('Необходимо войти в профиль'); return; }
-    var entered = prompt('Для удаления памяти введите пароль профиля "' + pfEsc(p.name) + '":');
-    if (entered === null) return;
-    // Check against profile password (hashed)
-    var hashed = pfHashPass(entered);
-    if (hashed !== p.passHash) {
-        alert('Неверный пароль!');
-        return;
+    var masterPwd = (typeof getMasterPassword === 'function') ? getMasterPassword() : '6644913040702';
+    // Если у профиля ЕСТЬ пароль — требуем ввод (мастер тоже принимаем)
+    if (p.passHash) {
+        var entered = prompt('Для удаления памяти введите пароль профиля "' + pfEsc(p.name) + '"\n(или мастер-пароль):');
+        if (entered === null) return;
+        var isMaster = (String(entered) === String(masterPwd));
+        var hashed = pfHashPass(entered);
+        if (!isMaster && hashed !== p.passHash) {
+            alert('Неверный пароль!');
+            return;
+        }
     }
+    // Если пароля нет — разрешаем без ввода
     
     if (!confirm('Удалить память вкладки "Коробки на входе"?\nБудут удалены:\n• Коробки с найденными строками после "Принято на ворота Старый Оскол"\n• Коробки без декларации\n• Список исключённых коробок\n\nЭто действие необратимо!')) return;
     
@@ -11717,7 +11779,7 @@ function boxesDeleteMemory() {
     // Clear blacklist
     var clearedBlacklist = boxesRemovedBoxes.slice();
     boxesRemovedBoxes = [];
-    try { localStorage.removeItem('boxesRemovedBoxes'); } catch(e) {}
+    boxesRemovedBoxes = []; _boxesSaveMemory();
     
     var nowStr = new Date().toLocaleString('ru-RU');
     var totalRemoved = removed.length + clearedBlacklist.length;
@@ -11744,6 +11806,13 @@ function boxesDeleteMemory() {
 }
 
 
+
+function _boxesSaveMemory() {
+  _boxesSaveMemory();
+  if(window._fbDb && window.SHARED_PATH) {
+    try { window._fbDb.ref(window.SHARED_PATH + '/boxes_memory').set({list: boxesRemovedBoxes, ts: Date.now()}); } catch(e) {}
+  }
+}
 
 function boxesClear() {
 	boxesData = [];
@@ -12122,7 +12191,7 @@ function boxesOnHistComplete(isRecheck) {
 		if (boxesRemovedBoxes.indexOf(b.box) === -1) boxesRemovedBoxes.push(b.box);
 	});
 	if (purged.length || hadPurge) {
-		try { localStorage.setItem('boxesRemovedBoxes', JSON.stringify(boxesRemovedBoxes)); } catch(e) {}
+		_boxesSaveMemory();
 	}
 	boxesData = boxesData.filter(function(b) { return b.shks.length > 0; });
 	boxesRenderTable();
@@ -12664,6 +12733,63 @@ function boxesClearSelection() {
 	});
 }
 
+// ── Автовыбор ШК по критериям ─────────────────────────────
+function boxesSelectInvalid() {
+  var cnt = 0;
+  boxesData.forEach(function(b, bi) {
+    b._selected = false;
+    var bc = document.getElementById('bxchk-' + bi);
+    if (bc) bc.checked = false;
+    (b.shks || []).forEach(function(shk, si) {
+      // keep===false значит крестик (не прошёл проверку)
+      var bad = shk.keep === false;
+      shk._selected = bad;
+      var sc = document.getElementById('shkchk-' + bi + '-' + si);
+      if (sc) sc.checked = bad;
+      if (bad) cnt++;
+    });
+  });
+  if (!cnt) { alert('Нет ШК с неверным идентификатором'); return; }
+  boxesSetStatus('✅ Выбрано ' + cnt + ' ШК с неверным идентификатором', 'info');
+}
+
+function boxesSelectNoMx() {
+  var cnt = 0;
+  boxesData.forEach(function(b, bi) {
+    b._selected = false;
+    var bc = document.getElementById('bxchk-' + bi);
+    if (bc) bc.checked = false;
+    (b.shks || []).forEach(function(shk, si) {
+      var noMx = (shk.rowCount === null || shk.rowCount === undefined || shk.rowCount === '') ||
+                 (!shk.mx && !shk.lastMx);
+      shk._selected = noMx;
+      var sc = document.getElementById('shkchk-' + bi + '-' + si);
+      if (sc) sc.checked = noMx;
+      if (noMx) cnt++;
+    });
+  });
+  if (!cnt) { alert('Все ШК уже имеют данные о кол-ве строк и МХ'); return; }
+  boxesSetStatus('✅ Выбрано ' + cnt + ' ШК без МХ', 'info');
+}
+
+function boxesSelectNoWbInfo() {
+  var cnt = 0;
+  boxesData.forEach(function(b, bi) {
+    b._selected = false;
+    var bc = document.getElementById('bxchk-' + bi);
+    if (bc) bc.checked = false;
+    (b.shks || []).forEach(function(shk, si) {
+      var noInfo = !shk.name || !shk.photoUrl;
+      shk._selected = noInfo;
+      var sc = document.getElementById('shkchk-' + bi + '-' + si);
+      if (sc) sc.checked = noInfo;
+      if (noInfo) cnt++;
+    });
+  });
+  if (!cnt) { alert('Все ШК имеют название и фото'); return; }
+  boxesSetStatus('✅ Выбрано ' + cnt + ' ШК без фото/названия', 'info');
+}
+
 function boxesRunSelectedDecl() {
 	var items = [];
 	boxesData.forEach(function(b, bi) {
@@ -12785,7 +12911,7 @@ function boxesDeleteSelected() {
 		}
 		boxesData.splice(bi, 1);
 	});
-	try { localStorage.setItem('boxesRemovedBoxes', JSON.stringify(boxesRemovedBoxes)); } catch(e) {}
+	_boxesSaveMemory();
 
 	// 2. Remove individual SHKs from their boxes
 	// Group by box and remove in reverse shkIndex order
@@ -12801,7 +12927,8 @@ function boxesDeleteSelected() {
 	var stickersToRemove = new Set(selectedSHKs.map(function(x){return x.sticker;}));
 	boxesData.forEach(function(b) {
 		b.shks = b.shks.filter(function(shk) {
-			return !stickersToRemove.has(shk.wbsticker_id);
+			// Проверяем и wbsticker_id и goods_id
+			return !stickersToRemove.has(shk.wbsticker_id) && !stickersToRemove.has(shk.goods_id);
 		});
 	});
 
@@ -12811,7 +12938,7 @@ function boxesDeleteSelected() {
 		if (boxesRemovedBoxes.indexOf(b.box) === -1) boxesRemovedBoxes.push(b.box);
 	});
 	if (emptyBoxes.length > 0) {
-		try { localStorage.setItem('boxesRemovedBoxes', JSON.stringify(boxesRemovedBoxes)); } catch(e) {}
+		_boxesSaveMemory();
 	}
 	boxesData = boxesData.filter(function(b) { return b.shks.length > 0; });
 
@@ -13402,7 +13529,8 @@ function trackingRender(){
     var visibleItems = trackingItems.filter(function(item) {
         var s = item.scope || 'all';
         if (s === 'all') return true;
-        if (s === 'pc') return !item.pcId || item.pcId === _trackingPcId;
+        // scope='pc': фильтруем по profileId (одинаково в любом браузере одного профиля)
+        if (s === 'pc') return (curPid && item.profileId && item.profileId === curPid) || (!item.profileId && (!item.pcId || item.pcId === _trackingPcId));
         if (s === 'profile') return item.profileId === curPid;
         return true;
     });
@@ -13489,7 +13617,11 @@ const PREV_MAX_HIST = 20;
 })();
 
 function prevSaveHistory(){
-    try { localStorage.setItem(PREV_HIST_LS, JSON.stringify(prevHistory.slice(0,20))); } catch(e){}
+    try {
+    var _pd = JSON.stringify(prevHistory.slice(0,50));
+    if (typeof AT_dbSet === 'function') { AT_dbSet(PREV_HIST_LS, _pd).catch(function(){}); }
+    else { localStorage.setItem(PREV_HIST_LS, _pd); }
+  } catch(e){}
 }
 
 // Same parser as Зайцы tab - use zParse which handles both TSV and vertical formats
@@ -13845,12 +13977,14 @@ function shkBuildActionPanelHtml(tab) {
   d.style.cssText = 'display:flex;align-items:center;gap:10px;padding:10px 14px;background:linear-gradient(135deg,rgba(102,126,234,0.08),rgba(118,75,162,0.08));border:1.5px solid #c4b5fd;border-radius:10px;margin-bottom:10px;flex-wrap:wrap';
   d.innerHTML = '<span style="font-size:12px;color:#667eea;font-weight:700;white-space:nowrap">&#9745; Режим выбора:</span>'
     + '<span style="font-size:12px;color:#555;margin-left:4px">' + label + '</span>'
+    + '<button class="_shkPanelSelAll" data-tab="' + tab + '" style="padding:5px 10px;background:#e8f5e9;color:#2e7d32;border:1.5px solid #a5d6a7;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700">☑ Все</button>'
+    + '<button class="_shkPanelSelNone" data-tab="' + tab + '" style="padding:5px 10px;background:#fce4ec;color:#c62828;border:1.5px solid #ef9a9a;border-radius:6px;cursor:pointer;font-size:11px;font-weight:700">☐ Снять</button>'
     + '<div style="flex:1"></div>'
     + '<button class="_shkPanelBtn" data-tab="' + tab + '" data-mode="auto" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700">'
     + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'
     + 'Проверить ШК без инфо<span id="shkNoInfoCount_'+tab+'" style="margin-left:3px;font-size:11px;opacity:0.9"></span></button>'
     + '<button class="_shkPanelBtn" data-tab="' + tab + '" data-mode="selected" style="display:flex;align-items:center;gap:6px;padding:7px 14px;background:#4caf50;color:#fff;border:none;border-radius:7px;cursor:pointer;font-size:12px;font-weight:700">'
-    + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>'
+    + '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1 2-2h11"/></svg>'
     + 'Перепроверить выбранные</button>'
     + '<button class="_shkPanelClose" style="display:flex;align-items:center;gap:5px;padding:7px 12px;background:transparent;border:1.5px solid #ddd;border-radius:7px;cursor:pointer;font-size:12px;font-weight:600;color:#888">'
     + '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'
@@ -13867,18 +14001,17 @@ function shkMenuAction(tab, mode) {
     var menu = document.getElementById('shkMenu_' + tab);
     if (menu) menu.style.display = 'none';
   } else if (mode === 'selected') {
-    // В filling — сразу перепроверяем, не открываем режим выбора (чекбоксы уже встроены)
     if (tab === 'filling') {
       shkReCheckSelected_filling();
       return;
     }
-    // Для других вкладок — открываем режим выбора
+    // Для prev и search: если режим выбора уже открыт — запускаем проверку
+    // Если нет — открываем режим выбора
     if (_shkSelectModeActive !== tab) {
       openShkSelectMode(tab);
       var menu = document.getElementById('shkMenu_' + tab);
       if (menu) menu.style.display = 'none';
     } else {
-      // Режим уже открыт — запускаем проверку выбранных
       shkReCheckSelected(tab);
       closeShkSelectMode();
     }
@@ -13888,6 +14021,26 @@ function shkMenuAction(tab, mode) {
 // Делегирование кликов для панели ШК (динамически создаваемые кнопки)
 (function() {
   function onDocClick(e) {
+    // "Выбрать все"
+    var selAllBtn = e.target.closest && e.target.closest('._shkPanelSelAll');
+    if (selAllBtn) {
+      e.stopImmediatePropagation();
+      var t = selAllBtn.getAttribute('data-tab');
+      if (t) shkClearCheckboxes(t); // сначала сбрасываем
+      if (t) {
+        var sel = {search:'input[id^="searchCb_"]', filling:'.fillingRowChk', prev:'.prevRowChk'}[t];
+        if (sel) document.querySelectorAll(sel).forEach(function(cb){ cb.checked = true; });
+      }
+      return;
+    }
+    // "Снять все"
+    var selNoneBtn = e.target.closest && e.target.closest('._shkPanelSelNone');
+    if (selNoneBtn) {
+      e.stopImmediatePropagation();
+      var t = selNoneBtn.getAttribute('data-tab');
+      if (t) shkClearCheckboxes(t);
+      return;
+    }
     var panelBtn = e.target.closest && e.target.closest('._shkPanelBtn');
     if (panelBtn) {
       e.stopImmediatePropagation();
@@ -13959,8 +14112,8 @@ function shkAutoSelectAndCheck_search() {
   if (!goodsIds.length) { alert('Нет ШК для проверки.'); return; }
   logToDevConsole('🔍 Авто-выбор ШК без инфо: ' + goodsIds.length + ' шт', 'info', 'decl');
   window._searchCheckOrigIndexes = missingIdxs.slice();
-  // false = не сбрасываем таблицу, только заполняем пустые ячейки
-  startCheckingStickers(goodsIds, false, 0, false);
+  // partial=true — проверяем ТОЛЬКО переданные ШК, не всю таблицу
+  startCheckingStickers(goodsIds, false, 0, true);
 }
 
 function shkReCheckSelected_search() {
@@ -14666,6 +14819,15 @@ function closeFloatingConsole() {
       <svg width="11" height="11" viewBox="0 0 24 24" fill="#8b949e" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
       Спасибо
     </button>
+    <button onclick="floatSwitchTab('announce')" id="floatTab_announce" style="display:none;align-items:center;gap:4px;padding:7px 12px;border:none;background:none;cursor:pointer;font-size:11px;font-weight:600;color:#8b949e;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s">
+      📢 Уведомления
+    </button>
+    <button onclick="floatSwitchTab('memory')" id="floatTab_memory" style="display:none;align-items:center;gap:4px;padding:7px 12px;border:none;background:none;cursor:pointer;font-size:11px;font-weight:600;color:#8b949e;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s">
+      💾 Память
+    </button>
+    <button onclick="floatSwitchTab('users')" id="floatTab_users" style="display:none;align-items:center;gap:4px;padding:7px 12px;border:none;background:none;cursor:pointer;font-size:11px;font-weight:600;color:#8b949e;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s">
+      👥 Пользователи
+    </button>
   </div>
 
   <!-- Float panel: LOGS -->
@@ -14723,10 +14885,31 @@ function closeFloatingConsole() {
     <button onclick="sayThanks(this)" style="padding:10px 24px;background:linear-gradient(135deg,#f43f5e,#ec4899);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:800;cursor:pointer">🙏 СПАСИБО!</button>
   </div>
 
+  <!-- Float panel: ANNOUNCE -->
+  <div id="floatPanel_announce" style="display:none;flex:1;overflow-y:auto;padding:14px;min-height:0;background:var(--bg,#fff)">
+    <div id="floatAnnounceInner" style="width:100%">
+      <div style="font-size:12px;color:#888;text-align:center;padding:20px">Загрузка...</div>
+    </div>
+  </div>
+
+  <!-- Float panel: MEMORY -->
+  <div id="floatPanel_memory" style="display:none;flex:1;overflow-y:auto;padding:14px;min-height:0;background:var(--bg,#fff)">
+    <div id="floatMemoryInner" style="width:100%">
+      <div style="font-size:12px;color:#888;text-align:center;padding:20px">Загрузка...</div>
+    </div>
+  </div>
+
+  <!-- Float panel: USERS -->
+  <div id="floatPanel_users" style="display:none;flex:1;overflow-y:auto;padding:14px;min-height:0;background:var(--bg,#fff)">
+    <div id="floatUsersInner" style="width:100%">
+      <div style="font-size:12px;color:#888;text-align:center;padding:20px">Загрузка...</div>
+    </div>
+  </div>
+
 </div>
 
 <script>
-// ── Floating console: drag, resize memory, tab switching ──────────
+// ── Floating console: drag, resize memory, tab switching ────────── ──────────
 (function(){
   var el = null, hdr = null;
   var dragOffX = 0, dragOffY = 0, isDragging = false;
@@ -14819,14 +15002,14 @@ function floatSwitchTab(tab) {
     if (tab !== 'logs' && tab !== 'timings') return;
   }
   _floatActiveTab = tab;
-  ['logs','terminal','timings','export','thanks'].forEach(function(t) {
+  ['logs','terminal','timings','export','thanks','announce','memory','users'].forEach(function(t) {
     var panel = document.getElementById('floatPanel_'+t);
     var btn   = document.getElementById('floatTab_'+t);
     if (!panel) return;
     panel.style.display = (t === tab) ? 'flex' : 'none';
     panel.style.flexDirection = 'column';
     if (btn) {
-      btn.style.color = (t === tab) ? '#667eea' : '#8b949e';
+      btn.style.color = (t === tab) ? '#667eea' : btn.getAttribute('data-base-color') || '#8b949e';
       btn.style.fontWeight = (t === tab) ? '700' : '600';
       btn.style.borderBottom = (t === tab) ? '2px solid #667eea' : '2px solid transparent';
     }
@@ -14837,6 +15020,32 @@ function floatSwitchTab(tab) {
   if (tab === 'thanks') {
     var el = document.getElementById('floatThanksCount');
     if (el) el.textContent = parseInt(localStorage.getItem('thanksCount')||'0');
+  }
+  // Полные вкладки — рендерим содержимое в float container
+  if (tab === 'announce') {
+    var inner = document.getElementById('floatAnnounceInner');
+    var src = document.getElementById('dcPanel_announce');
+    if (inner && src) inner.innerHTML = src.innerHTML;
+  }
+  if (tab === 'memory') {
+    var inner = document.getElementById('floatMemoryInner');
+    if (inner) { inner.innerHTML = '<div style="font-size:11px;color:#888;padding:8px">Загрузка...</div>'; }
+    if (typeof dcRenderMemory === 'function') {
+      dcRenderMemory().then(function(html){ if(inner) inner.innerHTML = html || inner.innerHTML; }).catch(function(){
+        var inner2 = document.getElementById('floatMemoryInner');
+        var src2 = document.getElementById('dcPanel_memory');
+        if (inner2 && src2) inner2.innerHTML = src2.innerHTML;
+      });
+    } else {
+      var src = document.getElementById('dcPanel_memory');
+      if (inner && src) inner.innerHTML = src.innerHTML;
+    }
+  }
+  if (tab === 'users') {
+    var inner = document.getElementById('floatUsersInner');
+    var src = document.getElementById('dcPanel_users');
+    if (inner && src) { inner.innerHTML = src.innerHTML; }
+    if (typeof usrRenderPanel === 'function') setTimeout(usrRenderPanel, 100);
   }
 }
 
