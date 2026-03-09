@@ -1429,7 +1429,7 @@ function initFirebase(){
           return;
         }
         // Для profiles, tracking, announce — всегда вызываем listener
-        var ALWAYS_SYNC = {profiles:1, tracking:1, timing_presets:1, announce:1, boxes:1, filling:1, zayac:1, prev:1};
+        var ALWAYS_SYNC = {profiles:1, tracking:1, timing_presets:1, announce:1, boxes:1, filling:1, zayac:1, prev:1, zrating:1};
         var isNew = val.ts && val.ts > _pageLoadTs;
         if(isNew || ALWAYS_SYNC[col]){
           try {
@@ -2019,6 +2019,11 @@ window.AT_importData = async function(file){
       <button onclick="usrRefresh()" style="padding:6px 14px;font-size:12px;font-weight:700;border-radius:7px;border:1.5px solid #667eea;color:#667eea;background:#f0edff;cursor:pointer">🔄 Обновить</button>
       <button onclick="usrReloadAll()" style="padding:6px 14px;font-size:12px;font-weight:700;border-radius:7px;border:1.5px solid #3b82f6;color:#3b82f6;background:#eff6ff;cursor:pointer">🔁 Перезагрузить всех</button>
       <button onclick="usrBroadcastMsg()" style="padding:6px 14px;font-size:12px;font-weight:700;border-radius:7px;border:1.5px solid #8b5cf6;color:#8b5cf6;background:#f5f3ff;cursor:pointer">📨 Сообщение всем</button>
+      <button onclick="usrSyncTimings()" style="padding:6px 14px;font-size:12px;font-weight:700;border-radius:7px;border:1.5px solid #f59e0b;color:#f59e0b;background:#fffbeb;cursor:pointer">⏱️ Синхр. тайминги</button>
+      <button onclick="usrShowActivityLog()" style="padding:6px 14px;font-size:12px;font-weight:700;border-radius:7px;border:1.5px solid #10b981;color:#10b981;background:#f0fdf4;cursor:pointer">📊 Лог активности</button>
+      <button onclick="usrExportSnapshot()" style="padding:6px 14px;font-size:12px;font-weight:700;border-radius:7px;border:1.5px solid #6b7280;color:#6b7280;background:#f9fafb;cursor:pointer">📸 Снапшот</button>
+      <button id="usrNotifyBtn" onclick="usrToggleNotify()" style="padding:6px 14px;font-size:12px;font-weight:700;border-radius:7px;border:1.5px solid #9ca3af;color:#9ca3af;background:#f9fafb;cursor:pointer">🔕 Уведомления</button>
+      <button onclick="usrGlobalSync()" style="padding:6px 14px;font-size:12px;font-weight:700;border-radius:7px;border:1.5px solid #ef4444;color:#ef4444;background:#fff5f5;cursor:pointer">🌐 Синхр. все</button>
     </div>
   </div>
 
@@ -3858,11 +3863,18 @@ function dcDeletePreset(presetKey) {
 
 var _dcCurrentTimingTab = 'global';
 
-// ── Listen for speed events from extension ───────────────────────
+// ── Listen for speed events + PC_ID from extension ───────────────
 window.addEventListener('message', function(e) {
   if (!e.data || e.data.source !== 'ARTEMENKTOOLS_EXTENSION') return;
   var d = e.data.data;
   if (!d) return;
+  if (d.type === 'PC_ID_READY') {
+    if (d.pcId) {
+      if (typeof _trackingPcId !== 'undefined') _trackingPcId = d.pcId;
+      localStorage.setItem('at_pc_id', d.pcId);
+    }
+    return;
+  }
   if (d.type === 'TIMING_STEP_START') dcSpeedStart(d.step);
   if (d.type === 'TIMING_STEP_END')   dcSpeedEnd();
   if (d.type === 'TIMING_SPEED_RESET') dcSpeedReset();
@@ -9691,11 +9703,16 @@ function usrRender() {
       html += '<button class="usr-action-btn usr-reload-btn" data-pcid="' + _eid + '" data-act="reload">🔁 Перезагрузить</button>';
       html += '<button class="usr-action-btn usr-msg-btn" data-pcid="' + _eid + '" data-name="' + _enm + '" data-act="msg">💬 Сообщение</button>';
       html += '<button class="usr-action-btn usr-logout-btn" data-pcid="' + _eid + '" data-act="logout">🚪 Выйти</button>';
+      html += '<button class="usr-action-btn" style="border-color:#f59e0b;color:#f59e0b;background:#fffbeb" data-pcid="' + _eid + '" data-act="synctimings">⏱️ Тайминги</button>';
+      html += '<button class="usr-action-btn" style="border-color:#0ea5e9;color:#0ea5e9;background:#f0f9ff" data-pcid="' + _eid + '" data-tab="search" data-act="switchtab">🗂️ На вкладку</button>';
+      html += '<button class="usr-action-btn" style="border-color:#ef4444;color:#ef4444;background:#fff5f5" data-pcid="' + _eid + '" data-act="clearhistory">🗑️ Очистить кэш</button>';
       html += '</div>';
     }
     html += '</div>';
   });
   list.innerHTML = html;
+  // Проверяем входы/выходы (уведомления)
+  try { _usrCheckNotify(users); } catch(e2) {}
 }
 
 function _usrFormatAge(ms) {
@@ -9757,6 +9774,163 @@ function usrHandleClick(e) {
   if (act === 'reload') usrReloadPc(pcId);
   else if (act === 'msg')    usrSendMsg(pcId, name);
   else if (act === 'logout') usrForceLogout(pcId);
+  else if (act === 'synctimings') usrSendTimings(pcId);
+  else if (act === 'switchtab') { var tab = btn.getAttribute('data-tab'); usrSwitchTab(pcId, tab); }
+  else if (act === 'clearhistory') usrClearCache(pcId);
+}
+
+// ── 8 новых функций Users ────────────────────────────────────────
+
+// 1. Синхронизация таймингов на конкретный ПК
+function usrSendTimings(pcId) {
+  if (!window._fbDb || !window.SHARED_PATH) return;
+  var timings = Object.assign({}, DC_TIMINGS || {}, DC_LOCAL_TIMINGS || {});
+  window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').set({
+    cmd: 'sync_timings', target: pcId, timings: timings, ts: Date.now(), by: _presencePcId
+  });
+  alert('⏱️ Тайминги отправлены на ПК ' + pcId);
+}
+
+// 2. Синхронизация таймингов на все ПК
+function usrSyncTimings() {
+  if (!confirm('Отправить текущие тайминги ВСЕМ пользователям?')) return;
+  if (!window._fbDb || !window.SHARED_PATH) return;
+  var timings = Object.assign({}, DC_TIMINGS || {}, DC_LOCAL_TIMINGS || {});
+  window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').set({
+    cmd: 'sync_timings', target: 'all', timings: timings, ts: Date.now(), by: _presencePcId
+  });
+  alert('✅ Тайминги отправлены всем ПК (' + Object.keys(timings).length + ' значений)');
+}
+
+// 3. Переключить вкладку у конкретного ПК
+function usrSwitchTab(pcId, defaultTab) {
+  var tabs = ['search','filling','prev','boxes','tracking','qr','trbx','zayac'];
+    var tab = prompt('Вкладка для ПК ' + pcId + ':', defaultTab || 'search');
+  if (!tab || !tab.trim()) return;
+  if (!window._fbDb || !window.SHARED_PATH) return;
+  window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').set({
+    cmd: 'switch_tab', target: pcId, tab: tab.trim(), ts: Date.now(), by: _presencePcId
+  });
+  alert('🗂️ Команда переключения на вкладку «' + tab + '» отправлена');
+}
+
+// 4. Очистить кэш у ПК
+function usrClearCache(pcId) {
+  if (!confirm('Очистить локальный кэш на ПК ' + pcId + '? Страница перезагрузится.')) return;
+  if (!window._fbDb || !window.SHARED_PATH) return;
+  window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').set({
+    cmd: 'clear_cache', target: pcId, ts: Date.now(), by: _presencePcId
+  });
+}
+
+// 5. Лог активности последних N часов
+function usrShowActivityLog() {
+  if (!window._fbDb || !window.SHARED_PATH) { alert('Firebase не подключён'); return; }
+  var hours = parseInt(prompt('Показать активность за последние N часов:', '8')) || 8;
+  var since = Date.now() - hours * 3600000;
+  var modal = document.createElement('div');
+  modal.className = 'usr-log-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px';
+  modal.innerHTML = '<div style="background:#fff;border-radius:14px;padding:20px;max-width:700px;width:100%;max-height:80vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">' +
+    '<h3 style="margin:0;font-size:15px;font-weight:800">📊 Лог активности — последние ' + hours + ' ч</h3>' +
+    '<button onclick="document.body.querySelectorAll(\'.usr-log-modal\').forEach(function(m){m.remove()})" style="border:none;background:#f3f4f6;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:14px">✕</button>' +
+    '</div>' +
+    '<div id="usrActivityLogContent" style="font-size:12px;color:#374151">⏳ Загружаем...</div>' +
+    '</div>';
+  document.body.appendChild(modal);
+  window._fbDb.ref(window.SHARED_PATH + '/presence').once('value', function(snap) {
+    var users = snap.val() || {};
+    var rows = Object.values(users).filter(function(u) { return (u.ts || 0) > since; });
+    rows.sort(function(a,b) { return (b.ts||0)-(a.ts||0); });
+    var content = document.getElementById('usrActivityLogContent');
+    if (!content) return;
+    if (!rows.length) { content.textContent = 'Активности нет'; return; }
+    var html = '<table style="width:100%;border-collapse:collapse">' +
+      '<tr style="background:#f8f9fa"><th style="padding:6px;text-align:left;border-bottom:1.5px solid #e5e7eb">Профиль</th>' +
+      '<th style="padding:6px;text-align:left;border-bottom:1.5px solid #e5e7eb">Статус</th>' +
+      '<th style="padding:6px;text-align:left;border-bottom:1.5px solid #e5e7eb">Страница</th>' +
+      '<th style="padding:6px;text-align:left;border-bottom:1.5px solid #e5e7eb">Последняя активность</th></tr>';
+    rows.forEach(function(u) {
+      var age = Date.now() - (u.ts||0);
+      var status = u.online && age < 60000 ? '🟢 Онлайн' : age < 300000 ? '⏸️ ' + Math.round(age/60000) + 'м' : '⚫ ' + Math.round(age/3600000*10)/10 + 'ч';
+      var page = _PAGE_NAMES[u.page] || u.page || '?';
+      var time = u.ts ? new Date(u.ts).toLocaleTimeString('ru-RU') : '?';
+      html += '<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:6px;font-weight:700">' + (u.profileName||'?') + '</td>' +
+        '<td style="padding:6px">' + status + '</td><td style="padding:6px">' + page + '</td><td style="padding:6px;color:#6b7280">' + time + '</td></tr>';
+    });
+    html += '</table>';
+    content.innerHTML = html;
+  });
+}
+
+// 6. Снапшот всех пользователей (копировать/сохранить)
+function usrExportSnapshot() {
+  if (!window._fbDb || !window.SHARED_PATH) { alert('Firebase не подключён'); return; }
+  window._fbDb.ref(window.SHARED_PATH + '/presence').once('value', function(snap) {
+    var users = snap.val() || {};
+    var now = Date.now();
+    var lines = ['Снапшот пользователей — ' + new Date().toLocaleString('ru-RU'), ''];
+    Object.values(users).sort(function(a,b){return (b.ts||0)-(a.ts||0);}).forEach(function(u) {
+      var age = now - (u.ts||0);
+      var status = u.online && age < 60000 ? 'Онлайн' : age < 300000 ? 'Неактивен ' + Math.round(age/60000) + 'мин' : 'Офлайн';
+      lines.push([(u.profileName||'?'), status, (_PAGE_NAMES[u.page]||u.page||'?'), u.action||'—', u.ts ? new Date(u.ts).toLocaleString('ru-RU') : '?'].join(' | '));
+    });
+    var text = lines.join('\n');
+    navigator.clipboard.writeText(text).then(function() {
+      alert('📋 Снапшот скопирован в буфер! (' + Object.values(_usrData).length + ' пользователей)');
+    }).catch(function() {
+      prompt('Снапшот пользователей:', text);
+    });
+  });
+}
+
+// 7. Подписка на уведомление о входе/выходе пользователей
+var _usrNotifyEnabled = false;
+function usrToggleNotify() {
+  _usrNotifyEnabled = !_usrNotifyEnabled;
+  var btn = document.getElementById('usrNotifyBtn');
+  if (btn) {
+    btn.textContent = _usrNotifyEnabled ? '🔔 Уведомления ВКЛ' : '🔕 Уведомления ВЫКЛ';
+    btn.style.borderColor = _usrNotifyEnabled ? '#10b981' : '#9ca3af';
+    btn.style.color = _usrNotifyEnabled ? '#10b981' : '#9ca3af';
+  }
+  if (_usrNotifyEnabled && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+var _usrPrevOnline = {};
+function _usrCheckNotify(users) {
+  if (!_usrNotifyEnabled) { _usrPrevOnline = {}; return; }
+  var now = Date.now();
+  var currentOnline = {};
+  users.forEach(function(u) { if (u.online && (now - (u.ts||0)) < 60000) currentOnline[u.pcId] = u; });
+  Object.keys(currentOnline).forEach(function(id) {
+    if (!_usrPrevOnline[id]) {
+      var u = currentOnline[id];
+      logToDevConsole('👤 Вошёл онлайн: ' + (u.profileName||id), 'info');
+      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+        new Notification('ArtemenkTools: Онлайн', { body: (u.profileName||id) + ' вошёл в систему', icon: '' });
+      }
+    }
+  });
+  Object.keys(_usrPrevOnline).forEach(function(id) {
+    if (!currentOnline[id]) {
+      var u = _usrPrevOnline[id];
+      logToDevConsole('👤 Вышел: ' + (u.profileName||id), 'warn');
+    }
+  });
+  _usrPrevOnline = currentOnline;
+}
+
+// 8. Глобальный ключ синхронизации — принудительно обновить всех
+function usrGlobalSync() {
+  if (!confirm('Принудительно синхронизировать все данные на ВСЕХ ПК?')) return;
+  if (!window._fbDb || !window.SHARED_PATH) return;
+  window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').set({
+    cmd: 'force_sync', target: 'all', ts: Date.now(), by: _presencePcId
+  });
+  alert('✅ Команда синхронизации отправлена всем');
 }
 
 // ─── Слушатель admin команд (все ПК слушают и выполняют) ────────
@@ -9789,6 +9963,37 @@ window.addEventListener('AT_fb_ready', function() {
         } else {
           alert('Сообщение от администратора:\n' + cmd.message);
         }
+      } else if (cmd.cmd === 'sync_timings' && cmd.timings) {
+        // Применяем тайминги от администратора
+        try {
+          Object.keys(cmd.timings).forEach(function(k) { DC_TIMINGS[k] = cmd.timings[k]; });
+          window.postMessage({ type: 'AT_TIMINGS_UPDATE', timings: cmd.timings }, '*');
+          logToDevConsole('⏱️ Тайминги синхронизированы от ' + (cmd.by||'admin') + ' (' + Object.keys(cmd.timings).length + ' значений)', 'info');
+        } catch(e) {}
+      } else if (cmd.cmd === 'switch_tab' && cmd.tab) {
+        // Переключаемся на вкладку
+        try {
+          if (typeof floatSwitchTab === 'function') floatSwitchTab(cmd.tab);
+          else if (typeof switchTab === 'function') switchTab(cmd.tab);
+          logToDevConsole('🗂️ Вкладка переключена на: ' + cmd.tab + ' (команда от ' + (cmd.by||'admin') + ')', 'info');
+        } catch(e) {}
+      } else if (cmd.cmd === 'clear_cache') {
+        // Очищаем кэш и перезагружаем
+        try {
+          ['trackingItemsV2','at_pc_id'].forEach(function(k) { try { localStorage.removeItem(k); } catch(e2) {} });
+          logToDevConsole('🗑️ Кэш очищен (команда от ' + (cmd.by||'admin') + ')', 'warn');
+          setTimeout(function() { location.reload(); }, 800);
+        } catch(e) {}
+      } else if (cmd.cmd === 'force_sync') {
+        // Принудительная синхронизация всех RT данных
+        try {
+          if (typeof AT_rtLoadLocal === 'function') {
+            ['tracking','zrating','boxes','filling','zayac','prev'].forEach(function(col) {
+              try { AT_rtLoadLocal(col, function(){}); } catch(e2) {}
+            });
+          }
+          logToDevConsole('🔄 Принудительная синхронизация данных (от ' + (cmd.by||'admin') + ')', 'info');
+        } catch(e) {}
       }
     });
   }, 800);
@@ -11612,6 +11817,12 @@ const BOXES_MAX_HIST = 30;
 		AT_rtListen('boxes', function(action, id, data){
 			if(action==='add'){
 				if(!data||!data.id) return;
+				// Специальный ключ: синхронизация памяти исключений
+				if(data.id==='_memory_' && data.list){
+					boxesRemovedBoxes = data.list;
+					try { localStorage.setItem('boxesRemovedBoxes', JSON.stringify(boxesRemovedBoxes)); } catch(e2){}
+					return;
+				}
 				var idx=boxesHistory.findIndex(function(x){return x.id===data.id;});
 				if(idx>=0) boxesHistory[idx]=data; else boxesHistory.unshift(data);
 				boxesHistory.sort(function(a,b){return (b.id||0)-(a.id||0);});
@@ -11840,8 +12051,9 @@ function boxesDeleteMemory() {
 
 function _boxesSaveMemory() {
   try { localStorage.setItem('boxesRemovedBoxes', JSON.stringify(boxesRemovedBoxes)); } catch(e) {}
-  if(window._fbDb && window.SHARED_PATH) {
-    try { window._fbDb.ref(window.SHARED_PATH + '/boxes_memory').set({list: boxesRemovedBoxes, ts: Date.now()}); } catch(e) {}
+  // Синхронизация через RT: id='_memory_' — особый ключ для памяти коробок
+  if(typeof AT_rtPush==='function'){
+    try { AT_rtPush('boxes', '_memory_', {id:'_memory_', list: boxesRemovedBoxes, ts: Date.now()}); } catch(e){}
   }
 }
 
@@ -13327,9 +13539,13 @@ function trackingResume(shk){
     var item = trackingItems.find(function(i){ return i.shk===shk; });
     if(!item) return;
     item.paused = false;
-    item.status = '▶️ Возобновлено. Жду проверки...';
+    // Сбрасываем базовое значение — следующая проверка установит новую базу
+    item.lastRowCount = -1;
+    item.lastMx = '';
+    item.status = '▶️ Возобновлено. Ожидает новой базовой точки...';
     item.nextCheck = Date.now() + item.intervalMs;
     trackingSave();
+    _trackingRtPushOne(item);
     trackingRender();
     trackingSetTimer(shk);
 }
@@ -13345,9 +13561,11 @@ function trackingOnResult(shk, rowCount, lastMx){
     // ── Базовое значение (первая проверка) ──────────────────
     if(item.lastRowCount < 0){
         item.lastRowCount = rowCount;
+        item.lastMx = lastMx || item.lastMx || '';
         item.status = '✅ Базовое значение: '+rowCount+' строк'+mxStr;
         item.nextCheck = Date.now() + item.intervalMs;
         trackingSave();
+        _trackingRtPushOne(item);
         trackingRender();
         trackingSetTimer(shk);
         return;
@@ -14356,7 +14574,7 @@ function prevRender(){
         +'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px">'
         +'<h2 style="font-size:18px;margin:0;font-weight:800;color:'+txt+'">Найдено: <span style="color:#6366f1">'+prevDataset.length+'</span></h2>'
         +'<div style="display:flex;gap:8px;align-items:center">'
-        +'<button id="prevSelectShkBtn" onclick="openShkSelectMode(\'prev\')" style="padding:8px 12px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:8px;cursor:pointer;display:flex;align-items:center;justify-content:center" title="Выбрать ШК для проверки"><svg width=\'15\' height=\'15\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2.5\'><rect x=\'3\' y=\'3\' width=\'4\' height=\'4\' rx=\'1\'/><rect x=\'3\' y=\'10\' width=\'4\' height=\'4\' rx=\'1\'/><rect x=\'3\' y=\'17\' width=\'4\' height=\'4\' rx=\'1\'/><line x1=\'10\' y1=\'5\' x2=\'21\' y2=\'5\'/><line x1=\'10\' y1=\'12\' x2=\'21\' y2=\'12\'/><line x1=\'10\' y1=\'19\' x2=\'21\' y2=\'19\'/></svg></button>'
+        +'<div style="position:relative;display:inline-block">'+'<button id="prevSelectShkBtn" onclick="toggleShkMenu(\'prev\')" style="padding:8px 12px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px">'+'<svg width=\'13\' height=\'13\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2.5\' style=\'vertical-align:middle\'><rect x=\'3\' y=\'3\' width=\'4\' height=\'4\' rx=\'1\'/><rect x=\'3\' y=\'10\' width=\'4\' height=\'4\' rx=\'1\'/><rect x=\'3\' y=\'17\' width=\'4\' height=\'4\' rx=\'1\'/><line x1=\'10\' y1=\'5\' x2=\'21\' y2=\'5\'/><line x1=\'10\' y1=\'12\' x2=\'21\' y2=\'12\'/><line x1=\'10\' y1=\'19\' x2=\'21\' y2=\'19\'/></svg>'+'Выбрать ШК ▾</button>'+'<div id="shkMenu_prev" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.15);z-index:1000;min-width:220px;overflow:hidden">'+'<div style="padding:8px 12px;background:#f8f9fa;border-bottom:1px solid #e0e0e0;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.5px">Проверка ШК</div>'+'<button onclick="shkMenuAction(\'prev\',\'auto\');toggleShkMenu(\'prev\')" style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 16px;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:#333;border-bottom:1px solid #f0f0f0;text-align:left" onmouseover="this.style.background=\'#f0f4ff\'" onmouseout="this.style.background=\'none\'">'+'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'+'Проверить ШК без инфо</button>'+'<button onclick="shkMenuAction(\'prev\',\'selected\');toggleShkMenu(\'prev\')" style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 16px;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:#333;border-bottom:1px solid #f0f0f0;text-align:left" onmouseover="this.style.background=\'#f0f4ff\'" onmouseout="this.style.background=\'none\'">'+'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2.5"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>'+'Перепроверить выбранные</button>'+'<button onclick="toggleShkMenu(\'prev\')" style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 16px;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:#888;text-align:left" onmouseover="this.style.background=\'#fff5f5\'" onmouseout="this.style.background=\'none\'">'+'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'+'Отмена</button>'+'</div>'+'</div>'
         +'</div>'
         +'</div>'
         +'<div style="max-height:600px;overflow-y:auto;overflow-x:auto;border:1px solid '+bd+';border-radius:10px">'
