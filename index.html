@@ -1831,23 +1831,48 @@ window.AT_importData = async function(file){
 
 <!-- ── PANEL: THANKS ── -->
 <div id="dcPanel_thanks" style="display:none;flex:1;flex-direction:column;overflow:hidden;min-height:0">
-  <div style="flex:1;overflow-y:auto;padding:24px;min-height:0">
-    <h3 style="margin:0 0 20px;font-size:16px;font-weight:800;color:var(--txt,#333)">💖 Спасибо и поддержка</h3>
-    <div style="max-width:480px">
-      <div id="dcThanksContent" style="background:var(--bg2,#f8f9fa);border:1px solid var(--border,#e0e0e0);border-radius:12px;padding:20px;text-align:center">
-        <div style="font-size:48px;margin-bottom:12px">🙏</div>
-        <div id="dcThanksCount" style="font-size:32px;font-weight:900;background:linear-gradient(135deg,#f43f5e,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-bottom:4px">0</div>
-        <div style="font-size:13px;color:#888;margin-bottom:20px">раз сказано спасибо</div>
-        <button onclick="sayThanks(this)"
-          style="padding:14px 32px;background:linear-gradient(135deg,#f43f5e,#ec4899);color:#fff;border:none;border-radius:10px;font-size:16px;font-weight:800;cursor:pointer;letter-spacing:0.5px">
-          🙏 СКАЗАТЬ СПАСИБО!
-        </button>
-        <div style="margin-top:16px">
-          <button onclick="openThanksStats()"
-            style="padding:8px 18px;background:transparent;border:1px solid #e0e0e0;border-radius:8px;cursor:pointer;font-size:12px;color:#888">
-            📊 Статистика
-          </button>
-        </div>
+  <div style="flex:1;overflow-y:auto;padding:20px 24px;min-height:0">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+      <h3 style="margin:0;font-size:16px;font-weight:800;color:var(--txt,#333)">💖 Статистика благодарностей</h3>
+      <button onclick="sayThanks(this)" id="dcThanksMainBtn"
+        style="padding:10px 22px;background:linear-gradient(135deg,#f43f5e,#ec4899);color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:800;cursor:pointer;box-shadow:0 4px 14px rgba(244,63,94,.35)">
+        🙏 Сказать спасибо!
+      </button>
+    </div>
+
+    <!-- Total counter -->
+    <div style="display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <div style="flex:1;min-width:120px;background:linear-gradient(135deg,#fdf2f8,#fff0f3);border:1.5px solid #fca5a5;border-radius:12px;padding:14px 18px;text-align:center">
+        <div id="dcThanksCount" style="font-size:36px;font-weight:900;background:linear-gradient(135deg,#f43f5e,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent;line-height:1">0</div>
+        <div style="font-size:12px;color:#9ca3af;margin-top:4px;font-weight:600">всего «спасибо»</div>
+      </div>
+      <div style="flex:1;min-width:120px;background:linear-gradient(135deg,#f0fdf4,#f0f9ff);border:1.5px solid #6ee7b7;border-radius:12px;padding:14px 18px;text-align:center">
+        <div id="dcThanksProfiles" style="font-size:36px;font-weight:900;color:#10b981;line-height:1">0</div>
+        <div style="font-size:12px;color:#9ca3af;margin-top:4px;font-weight:600">уникальных профилей</div>
+      </div>
+      <div style="flex:1;min-width:120px;background:linear-gradient(135deg,#eff6ff,#f5f3ff);border:1.5px solid #93c5fd;border-radius:12px;padding:14px 18px;text-align:center">
+        <div id="dcThanksToday" style="font-size:36px;font-weight:900;color:#6366f1;line-height:1">0</div>
+        <div style="font-size:12px;color:#9ca3af;margin-top:4px;font-weight:600">за сегодня</div>
+      </div>
+    </div>
+
+    <!-- By profiles chart -->
+    <div style="background:var(--bg2,#f8f9fa);border:1.5px solid var(--border,#e5e7eb);border-radius:14px;padding:16px 18px;margin-bottom:16px">
+      <div style="font-size:12px;font-weight:700;color:#667eea;text-transform:uppercase;letter-spacing:.6px;margin-bottom:12px">📊 По профилям</div>
+      <div id="dcThanksChart" style="display:flex;flex-direction:column;gap:10px">
+        <div style="text-align:center;color:#9ca3af;padding:20px;font-size:13px">Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- Recent history -->
+    <div style="background:var(--bg2,#f8f9fa);border:1.5px solid var(--border,#e5e7eb);border-radius:14px;padding:16px 18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+        <div style="font-size:12px;font-weight:700;color:#667eea;text-transform:uppercase;letter-spacing:.6px">🕒 Последние нажатия</div>
+        <button onclick="dcThanksRefresh()" style="font-size:11px;color:#667eea;background:none;border:none;cursor:pointer;font-weight:600">🔄 Обновить</button>
+      </div>
+      <div id="dcThanksRecent" style="display:flex;flex-direction:column;gap:6px">
+        <div style="text-align:center;color:#9ca3af;padding:10px;font-size:13px">Загрузка...</div>
       </div>
     </div>
   </div>
@@ -2021,9 +2046,6 @@ window.AT_importData = async function(file){
       <button onclick="usrBroadcastMsg()" style="padding:6px 14px;font-size:12px;font-weight:700;border-radius:7px;border:1.5px solid #8b5cf6;color:#8b5cf6;background:#f5f3ff;cursor:pointer">📨 Сообщение всем</button>
       <button onclick="usrSyncTimings()" style="padding:6px 14px;font-size:12px;font-weight:700;border-radius:7px;border:1.5px solid #f59e0b;color:#f59e0b;background:#fffbeb;cursor:pointer">⏱️ Синхр. тайминги</button>
       <button onclick="usrShowActivityLog()" style="padding:6px 14px;font-size:12px;font-weight:700;border-radius:7px;border:1.5px solid #10b981;color:#10b981;background:#f0fdf4;cursor:pointer">📊 Лог активности</button>
-      <button onclick="usrExportSnapshot()" style="padding:6px 14px;font-size:12px;font-weight:700;border-radius:7px;border:1.5px solid #6b7280;color:#6b7280;background:#f9fafb;cursor:pointer">📸 Снапшот</button>
-      <button id="usrNotifyBtn" onclick="usrToggleNotify()" style="padding:6px 14px;font-size:12px;font-weight:700;border-radius:7px;border:1.5px solid #9ca3af;color:#9ca3af;background:#f9fafb;cursor:pointer">🔕 Уведомления</button>
-      <button onclick="usrGlobalSync()" style="padding:6px 14px;font-size:12px;font-weight:700;border-radius:7px;border:1.5px solid #ef4444;color:#ef4444;background:#fff5f5;cursor:pointer">🌐 Синхр. все</button>
     </div>
   </div>
 
@@ -2793,7 +2815,7 @@ window.AT_importData = async function(file){
 <button onclick="trackingAdd()" style="padding:10px 20px;background:linear-gradient(135deg,#4caf50,#2e7d32);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;white-space:nowrap">+ Добавить</button>
 <div id="trackingScopeToggle" style="display:flex;border:2px solid #ddd;border-radius:8px;overflow:hidden;flex-shrink:0">
   <button id="tscope_profile" onclick="trackingScopeSet('profile')" title="Только в данном профиле" style="padding:8px 10px;background:#667eea;color:#fff;border:none;cursor:pointer;font-size:12px;font-weight:700;white-space:nowrap">👤 Профиль</button>
-  <button id="tscope_pc" onclick="trackingScopeSet('pc')" title="На этом ПК (все профили)" style="padding:8px 10px;background:#fff;color:#555;border:none;cursor:pointer;font-size:12px;font-weight:600;border-left:1px solid #ddd;border-right:1px solid #ddd;white-space:nowrap">🖥️ На этом ПК</button>
+  <button id="tscope_pc" onclick="trackingScopeSet('pc')" title="На этом ПК (все профили)" style="padding:8px 10px;background:#fff;color:#555;border:none;cursor:pointer;font-size:12px;font-weight:600;border-left:1px solid #ddd;border-right:1px solid #ddd;white-space:nowrap">🖥️ На этом ПК <span id="trackingPcIpBadge" style="font-size:10px;color:#9ca3af;margin-left:2px"></span></button>
   <button id="tscope_all" onclick="trackingScopeSet('all')" title="Всем пользователям" style="padding:8px 10px;background:#fff;color:#555;border:none;cursor:pointer;font-size:12px;font-weight:600;white-space:nowrap">🌐 Все</button>
 </div>
 </div>
@@ -3330,10 +3352,7 @@ function devSwitchTab(tab) {
   if (tab === 'logs') dcRenderLogChannelBar();
   if (tab === 'announce') dcRenderAnnounce();
   if (tab === 'users') { usrRefresh(); _presenceWrite(); }
-  if (tab === 'thanks') {
-    var el = document.getElementById('dcThanksCount');
-    if (el) el.textContent = parseInt(localStorage.getItem('thanksCount')||'0');
-  }
+  if (tab === 'thanks') { setTimeout(dcThanksRefresh, 50); }
   // Sync floating console active tab
   var sel = document.getElementById('floatTabSelect');
   if (sel) sel.value = tab;
@@ -3442,74 +3461,74 @@ window.dcSpeedReset = dcSpeedReset;
 
 // ── Timing defaults ─────────────────────────────────────────────
 var DC_TIMING_DEFAULTS = {
-  // 1. Декларация
-  search_page_load:      { v:2800, label:'Загрузка страницы декларации', tab:'Декларация', desc:'Ожидание после открытия URL. При медленном сервере: 4000–5000 мс.' },
-  search_results_wait1:  { v:3000, label:'Ожидание таблицы результатов', tab:'Декларация', desc:'Angular делает запрос к API, рендерит таблицу. При медленном API: 4000+ мс.' },
-  search_row_expand:     { v:2500, label:'★ Раскрытие строки (фото/названия)', tab:'Декларация', desc:'КЛЮЧЕВОЙ. После клика Angular раскрывает детали. При пустых фото/названиях — увеличить до 3500–4000.' },
-  search_results_wait2:  { v:2500, label:'Повторное ожидание результатов', tab:'Декларация', desc:'Вторая попытка если первая не дала строк.' },
-  search_close_ok:       { v:2000, label:'Задержка закрытия окна (успех)', tab:'Декларация', desc:'Окно ждёт перед закрытием чтобы данные успели передаться.' },
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 1. ДЕКЛАРАЦИЯ (Поиск по декларации)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  search_page_load:      { v:2800, label:'Загрузка страницы', tab:'Декларация', desc:'★ ОСНОВНОЙ. Ожидание после открытия URL до начала работы. Медленный ПК/интернет → 4000–5000.' },
+  search_radio_wait:     { v:800,  label:'После выбора типа поиска (переключатель)', tab:'Декларация', desc:'Пауза после клика по радио-кнопке "Короб". Angular применяет выбор.' },
+  search_input_wait:     { v:300,  label:'После ввода значения в поле', tab:'Декларация', desc:'Пауза после dispatchEvent. Уменьшить до 200 если нет ошибок.' },
+  search_enter_wait:     { v:1000, label:'★ После нажатия Enter (запрос к API)', tab:'Декларация', desc:'★ КЛЮЧЕВОЙ. Angular отправляет запрос к API. Если таблица пустая → увеличить до 2000.' },
+  search_tare_check:     { v:1500, label:'Проверка ID тары после ввода', tab:'Декларация', desc:'Ожидание перед чтением блока "Сведения о таре".' },
+  search_hist_tab:       { v:800,  label:'★ Открытие вкладки "История деклараций"', tab:'Декларация', desc:'★ КЛЮЧЕВОЙ. Пауза после клика по вкладке перед чтением данных.' },
+  search_results_wait1:  { v:3000, label:'★ Загрузка таблицы результатов', tab:'Декларация', desc:'★ КЛЮЧЕВОЙ. Angular делает API-запрос и рендерит таблицу. При частых промахах → 4000.' },
+  search_results_wait2:  { v:2500, label:'Повторное ожидание таблицы', tab:'Декларация', desc:'Второй шанс если таблица ещё не появилась.' },
+  search_row_expand:     { v:2500, label:'★ Раскрытие строки (фото и название)', tab:'Декларация', desc:'★ КЛЮЧЕВОЙ. После клика Angular раскрывает детали. Пустые фото/названия → 3500.' },
+  search_table_read:     { v:500,  label:'Пауза перед чтением таблицы', tab:'Декларация', desc:'Дополнительная задержка перед парсингом строк таблицы.' },
+  search_tare_id_check:  { v:500,  label:'Проверка ID в разделе тары', tab:'Декларация', desc:'Пауза перед чтением номера в блоке тары.' },
+  search_close_ok:       { v:2000, label:'Задержка закрытия окна (успех)', tab:'Декларация', desc:'Окно ждёт перед закрытием чтобы данные успели передаться в AT.html.' },
 
-  // 2. Наполнение
-  filling_page_load:     { v:3000, label:'Загрузка страницы наполнения', tab:'Наполнение', desc:'Ожидание после открытия URL страницы наполнения WMS.' },
-  filling_first_item:    { v:1200, label:'★ Первый товар — ожидание загрузки', tab:'Наполнение', desc:'Первый товар загружается медленнее (холодный старт Angular).' },
-  filling_next_item:     { v:800,  label:'★ Переход между товарами', tab:'Наполнение', desc:'ОСНОВНОЙ таймер скорости. Пауза после перехода на следующий ШК.' },
-  filling_table_load:    { v:2000, label:'Загрузка таблицы наполнения', tab:'Наполнение', desc:'Ожидание появления таблицы товаров на странице.' },
-  filling_item_read:     { v:400,  label:'Чтение данных одного товара', tab:'Наполнение', desc:'Дополнительная пауза перед парсингом DOM. Уменьшить при быстром интернете.' },
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 2. НАПОЛНЕНИЕ (Поиск по наполнению)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  filling_page_load:     { v:3000, label:'Загрузка страницы наполнения', tab:'Наполнение', desc:'★ ОСНОВНОЙ. Ожидание после открытия URL страницы наполнения WMS.' },
+  filling_first_item:    { v:1200, label:'★ Первый товар — ожидание', tab:'Наполнение', desc:'★ КЛЮЧЕВОЙ. Первый товар грузится медленнее. При ошибках → 2000.' },
+  filling_next_item:     { v:800,  label:'★ Переход между товарами', tab:'Наполнение', desc:'★ ОСНОВНОЙ ТАЙМЕР СКОРОСТИ. Пауза после перехода на следующий ШК. Уменьшить = быстрее, но больше ошибок.' },
+  filling_table_load:    { v:2000, label:'Загрузка таблицы с товарами', tab:'Наполнение', desc:'Ожидание появления таблицы на странице наполнения.' },
+  filling_item_read:     { v:400,  label:'Пауза перед чтением данных товара', tab:'Наполнение', desc:'Дополнительная пауза перед парсингом DOM. Уменьшить до 200 при быстром интернете.' },
   filling_wb_first:      { v:500,  label:'WB-инфо: первый товар (фото/название)', tab:'Наполнение', desc:'Пауза перед чтением фото и названия первого товара.' },
   filling_wb_next:       { v:300,  label:'WB-инфо: переход между товарами', tab:'Наполнение', desc:'Пауза перед чтением фото и названия следующих товаров.' },
 
-  // 3. Предотвращение
-  prev_first_item:       { v:1200, label:'★ Первый товар — ожидание загрузки', tab:'Предотвращение', desc:'Первый товар загружается медленнее.' },
-  prev_next_item:        { v:800,  label:'★ Переход между товарами', tab:'Предотвращение', desc:'ОСНОВНОЙ таймер скорости. Пауза после перехода на следующий ШК.' },
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 3. ПРЕДОТВРАЩЕНИЕ (Поиск по предотвращению)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  prev_first_item:       { v:1200, label:'★ Первый товар — ожидание загрузки', tab:'Предотвращение', desc:'★ КЛЮЧЕВОЙ. Первый товар загружается медленнее (холодный старт). При ошибках → 2000.' },
+  prev_next_item:        { v:800,  label:'★ Переход между товарами', tab:'Предотвращение', desc:'★ ОСНОВНОЙ ТАЙМЕР СКОРОСТИ. Пауза после перехода на следующий ШК.' },
 
-  // 4. Коробки на входе
-  boxes_spa_init:        { v:4000, label:'Инициализация Angular SPA (старт)', tab:'Коробки на входе', desc:'При первом открытии WMS грузится всё приложение. Уменьшать осторожно.' },
-  boxes_decl_open:       { v:1500, label:'Открытие окна декларации', tab:'Коробки на входе', desc:'Ожидание после window.open.' },
-  boxes_decl_nav:        { v:800,  label:'★ Переход между декларациями', tab:'Коробки на входе', desc:'ОСНОВНОЙ таймер. Пауза после location.href для следующей декларации.' },
-  boxes_decl_read:       { v:800,  label:'Чтение строк таблицы декларации', tab:'Коробки на входе', desc:'Ожидание перед парсингом таблицы.' },
-  boxes_decl_row_expand: { v:1000, label:'Раскрытие строки декларации', tab:'Коробки на входе', desc:'После клика Angular раскрывает детали.' },
-  boxes_wb_first:        { v:1200, label:'★ WB-инфо: первая загрузка (фото/названия)', tab:'Коробки на входе', desc:'КЛЮЧЕВОЙ. При ошибках фото/названий — увеличить до 1800+.' },
-  boxes_wb_next:         { v:800,  label:'★ WB-инфо: переход между товарами', tab:'Коробки на входе', desc:'ОСНОВНОЙ таймер. Пауза после навигации на следующий товар WB.' },
-  boxes_wb_read:         { v:400,  label:'WB-инфо: чтение данных', tab:'Коробки на входе', desc:'Дополнительная пауза перед парсингом DOM.' },
-  boxes_hist_first:      { v:3500, label:'★ История МХ: первый товар', tab:'Коробки на входе', desc:'КЛЮЧЕВОЙ. Страница перезагружается полностью. При ошибках: 5000+ мс.' },
-  boxes_hist_next:       { v:3000, label:'★ История МХ: переход между товарами', tab:'Коробки на входе', desc:'ОСНОВНОЙ таймер. Пауза при навигации на следующий ШК.' },
-  boxes_hist_retry:      { v:2000, label:'История МХ: повтор при пустом результате', tab:'Коробки на входе', desc:'При нестабильном соединении — увеличить.' },
-  boxes_hist_load:       { v:3500, label:'История деклараций: прямая загрузка', tab:'Коробки на входе', desc:'При переходе по прямому URL истории.' },
-  boxes_hist_rows_poll:  { v:500,  label:'Интервал опроса строк истории', tab:'Коробки на входе', desc:'Каждые N мс проверяет появление строк в таблице.' },
-  boxes_tares_rows_poll: { v:500,  label:'Интервал опроса строк тар', tab:'Коробки на входе', desc:'Проверяет появление SO-строк.' },
-  boxes_expand_toggle:   { v:800,  label:'Раскрытие строки (toggle/expand)', tab:'Коробки на входе', desc:'После вызова Angular toggle().' },
-  boxes_expand_click:    { v:600,  label:'Раскрытие строки (клик по иконке)', tab:'Коробки на входе', desc:'Fallback: клик по expand-иконке.' },
-  boxes_expand_row:      { v:800,  label:'Раскрытие строки (клик по row)', tab:'Коробки на входе', desc:'Финальный fallback: клик по всей строке.' },
-  boxes_tare_retry1:     { v:1000, label:'Retry 1: ожидание tare_link-ов', tab:'Коробки на входе', desc:'1 секунда до повтора если tare_link не найдены.' },
-  boxes_tare_retry2:     { v:2000, label:'Retry 2: долгое ожидание tare_link-ов', tab:'Коробки на входе', desc:'Вторая попытка. При медленном Angular — увеличить.' },
-  boxes_count_rows_poll: { v:500,  label:'Опрос строк для подсчёта', tab:'Коробки на входе', desc:'Интервал проверки при подсчёте количества в коробке.' },
-  boxes_expand_scroll:   { v:100,  label:'Пауза перед scrollIntoView', tab:'Коробки на входе', desc:'Минимальная задержка. Обычно не трогать.' },
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 4. КОРОБКИ НА ВХОДЕ
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  boxes_spa_init:        { v:4000, label:'★ Инициализация Angular (первый запуск)', tab:'Коробки на входе', desc:'★ КЛЮЧЕВОЙ. Первое открытие WMS — грузится всё SPA-приложение. Уменьшать осторожно (не ниже 3000).' },
+  boxes_decl_open:       { v:1500, label:'Ожидание после открытия окна', tab:'Коробки на входе', desc:'Пауза после window.open() перед первым запросом.' },
+  boxes_decl_nav:        { v:800,  label:'★ Переход между декларациями', tab:'Коробки на входе', desc:'★ ОСНОВНОЙ. Пауза после location.href при переходе к следующей коробке.' },
+  boxes_decl_read:       { v:800,  label:'Чтение строк декларации', tab:'Коробки на входе', desc:'Ожидание перед парсингом таблицы деклараций.' },
+  boxes_decl_row_expand: { v:1000, label:'Раскрытие строки декларации', tab:'Коробки на входе', desc:'Пауза после клика — Angular раскрывает детали строки.' },
+  boxes_wb_first:        { v:1200, label:'★ WB-инфо: первый товар (фото/название)', tab:'Коробки на входе', desc:'★ КЛЮЧЕВОЙ. При ошибках с фото/названиями → увеличить до 1800.' },
+  boxes_wb_next:         { v:800,  label:'★ WB-инфо: следующий товар', tab:'Коробки на входе', desc:'★ ОСНОВНОЙ. Пауза при навигации на следующий товар WB.' },
+  boxes_hist_first:      { v:3500, label:'★ История МХ: первый товар', tab:'Коробки на входе', desc:'★ КЛЮЧЕВОЙ. Страница перезагружается полностью. При ошибках → 5000.' },
+  boxes_hist_next:       { v:3000, label:'★ История МХ: переход между товарами', tab:'Коробки на входе', desc:'★ ОСНОВНОЙ. Пауза при навигации на следующий ШК истории.' },
+  boxes_hist_retry:      { v:2000, label:'История МХ: повтор при пустом результате', tab:'Коробки на входе', desc:'При нестабильном соединении → увеличить до 3000.' },
+  boxes_hist_load:       { v:3500, label:'Загрузка страницы истории деклараций', tab:'Коробки на входе', desc:'При переходе по прямому URL истории.' },
+  boxes_hist_rows_poll:  { v:500,  label:'Интервал опроса строк истории (мс)', tab:'Коробки на входе', desc:'Каждые N мс проверяет появление строк. Уменьшить до 300 если WMS быстрый.' },
+  boxes_tares_rows_poll: { v:500,  label:'Интервал опроса строк тар (мс)', tab:'Коробки на входе', desc:'Проверяет появление SO-строк. Уменьшить аналогично hist_rows_poll.' },
+  boxes_expand_toggle:   { v:800,  label:'Раскрытие строки: Angular toggle', tab:'Коробки на входе', desc:'Пауза после вызова Angular toggle().' },
+  boxes_expand_click:    { v:600,  label:'Раскрытие строки: клик по иконке', tab:'Коробки на входе', desc:'Fallback: клик по иконке раскрытия.' },
+  boxes_expand_row:      { v:800,  label:'Раскрытие строки: клик по всей строке', tab:'Коробки на входе', desc:'Финальный fallback: клик по строке.' },
+  boxes_tare_retry1:     { v:1000, label:'Retry 1: ожидание ссылок на тары', tab:'Коробки на входе', desc:'1 секунда до первого повтора если tare_link не найдены.' },
+  boxes_tare_retry2:     { v:2000, label:'Retry 2: долгое ожидание ссылок', tab:'Коробки на входе', desc:'Второй повтор. При медленном Angular → 3000.' },
+  boxes_count_rows_poll: { v:500,  label:'Интервал подсчёта строк в коробке', tab:'Коробки на входе', desc:'Опрос при подсчёте количества товаров в коробке.' },
+  boxes_expand_scroll:   { v:100,  label:'Задержка перед прокруткой', tab:'Коробки на входе', desc:'Минимальная пауза перед scrollIntoView. Обычно не трогать.' },
 
-  // 5. Отслеживание ШК
-  tracking_first_open:   { v:4000, label:'★ Первое открытие истории ШК', tab:'Отслеживание ШК', desc:'Страница грузится с нуля. При медленном соединении: 5000–6000 мс.' },
-  tracking_next_item:    { v:3500, label:'★ Переход между ШК', tab:'Отслеживание ШК', desc:'ОСНОВНОЙ таймер. После location.href для следующего ШК.' },
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 5. ОТСЛЕЖИВАНИЕ ШК
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  tracking_first_open:   { v:4000, label:'★ Первое открытие истории ШК', tab:'Отслеживание ШК', desc:'★ КЛЮЧЕВОЙ. Страница грузится с нуля. Медленный интернет → 5000–6000.' },
+  tracking_next_item:    { v:3500, label:'★ Переход между ШК', tab:'Отслеживание ШК', desc:'★ ОСНОВНОЙ. Пауза после location.href для следующего ШК.' },
 
-  // 6. Чистка гофр
-  sticker_first_load:    { v:3500, label:'★ Первая загрузка страницы', tab:'Чистка гофр', desc:'Ожидание после открытия окна (первый запуск Angular).' },
-  sticker_input_wait:    { v:800,  label:'Ожидание поля ввода', tab:'Чистка гофр', desc:'Пауза перед фокусом на поле ввода.' },
-  sticker_after_enter:   { v:1000, label:'★ После нажатия Enter', tab:'Чистка гофр', desc:'КЛЮЧЕВОЙ. Ожидание реакции Angular после Enter.' },
-  sticker_after_copy:    { v:1500, label:'★ Ожидание копирования данных', tab:'Чистка гофр', desc:'КЛЮЧЕВОЙ. Ожидание пока данные скопируются на страницу.' },
-  sticker_next_item:     { v:680,  label:'★ Переход к следующему значению', tab:'Чистка гофр', desc:'ОСНОВНОЙ. Пауза перед обработкой следующего значения.' },
-
-  // 7. Поиск по наполнению (Декларация через тару)
-  tare_page_load:        { v:1000, label:'Загрузка страницы тары', tab:'Поиск по наполнению', desc:'Ожидание после открытия страницы перед выбором типа.' },
-  tare_after_radio:      { v:800,  label:'После выбора переключателя', tab:'Поиск по наполнению', desc:'Пауза после клика по радио-кнопке.' },
-  tare_after_enter:      { v:300,  label:'После ввода значения', tab:'Поиск по наполнению', desc:'Пауза после dispatchEvent input/change.' },
-  tare_after_submit:     { v:1000, label:'★ После нажатия Enter', tab:'Поиск по наполнению', desc:'КЛЮЧЕВОЙ. Angular обрабатывает поиск.' },
-  tare_id_check:         { v:1500, label:'Проверка ID тары', tab:'Поиск по наполнению', desc:'Ожидание перед чтением ID в блоке "Сведения о таре".' },
-  tare_tab_open:         { v:800,  label:'Открытие вкладки декларации', tab:'Поиск по наполнению', desc:'Пауза после клика по вкладке "История деклараций".' },
-  tare_decl_load:        { v:3000, label:'★ Загрузка таблицы деклараций', tab:'Поиск по наполнению', desc:'КЛЮЧЕВОЙ. Angular загружает список деклараций.' },
-  tare_decl_expand:      { v:2500, label:'★ Раскрытие строки декларации', tab:'Поиск по наполнению', desc:'КЛЮЧЕВОЙ. После клика строка раскрывается.' },
-  tare_close_ok:         { v:2000, label:'Задержка закрытия (успех)', tab:'Поиск по наполнению', desc:'Пауза перед закрытием окна после успешного извлечения.' },
-
-  // 8. Наполнение — дополнительно
-  filling_extract_wait:  { v:2000, label:'★ Ожидание загрузки таблицы', tab:'Наполнение', desc:'После открытия окна наполнения перед чтением строк.' },
-  filling_wb_wait:       { v:400,  label:'Чтение WB-инфо (пауза перед парсингом)', tab:'Наполнение', desc:'Пауза перед чтением app-shk-title.' },
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  // 6. ЧИСТКА ГОФР (Поиск по декларации — вкладка Гофр)
+  // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  sticker_first_load:    { v:3500, label:'★ Первая загрузка страницы', tab:'Чистка гофр', desc:'★ КЛЮЧЕВОЙ. Ожидание после открытия окна (первый запуск Angular). При ошибках → 5000.' },
+  sticker_next_item:     { v:680,  label:'★ Переход к следующему ШК', tab:'Чистка гофр', desc:'★ ОСНОВНОЙ ТАЙМЕР СКОРОСТИ. Пауза после location.href. Уменьшить = быстрее, но риск ошибок.' },
 };
 
 // ── Load saved timings ───────────────────────────────────────────
@@ -8048,7 +8067,99 @@ function openThanksStats(){
     document.body.appendChild(modal);
 }
 
-function updateThanksDisplay(){}
+function updateThanksDisplay() {
+  dcThanksRefresh();
+}
+
+function dcThanksRefresh() {
+  var th = [];
+  try { th = JSON.parse(localStorage.getItem('thanksHistory') || '[]'); } catch(e) {}
+  
+  var total = th.length;
+  var todayStart = new Date(); todayStart.setHours(0,0,0,0);
+  var todayCount = th.filter(function(t) { return (t.ts || 0) >= todayStart.getTime(); }).length;
+  
+  // Aggregate by profile
+  var byProfile = {};
+  th.forEach(function(t) {
+    var key = t.profileId || t.profile || 'Гость';
+    if (!byProfile[key]) byProfile[key] = { name: t.profile||'Гость', profileId: t.profileId||'', count:0, last:'', lastTs:0, entries:[] };
+    byProfile[key].count++;
+    byProfile[key].entries.push(t);
+    if ((t.ts||0) > byProfile[key].lastTs) { byProfile[key].lastTs = t.ts||0; byProfile[key].last = t.time||''; }
+  });
+  var profiles = Object.values(byProfile).sort(function(a,b) { return b.count - a.count; });
+  
+  // Update counters
+  var elCnt = document.getElementById('dcThanksCount');
+  var elPro = document.getElementById('dcThanksProfiles');
+  var elTod = document.getElementById('dcThanksToday');
+  if (elCnt) elCnt.textContent = total;
+  if (elPro) elPro.textContent = profiles.length;
+  if (elTod) elTod.textContent = todayCount;
+  
+  // Chart
+  var chartEl = document.getElementById('dcThanksChart');
+  if (chartEl) {
+    if (!profiles.length) {
+      chartEl.innerHTML = '<div style="text-align:center;color:#9ca3af;padding:20px;font-size:13px">Ещё никто не нажимал Спасибо</div>';
+    } else {
+      var maxCnt = profiles[0].count;
+      var isDark = document.body.classList.contains('dark');
+      var chartHtml = '';
+      profiles.forEach(function(p, idx) {
+        pfLoad();
+        var pObj = p.profileId ? (_pfProfiles||[]).find(function(x){return x.id===p.profileId;}) : null;
+        var avatar = pObj ? (pObj.avatarImg || pObj.avatarEmoji || pObj.avatar || '👤') : '👤';
+        var avatarHtml = (avatar && (avatar.startsWith('data:') || avatar.startsWith('http')))
+          ? '<img src="'+avatar+'" style="width:38px;height:38px;border-radius:50%;object-fit:cover;flex-shrink:0">'
+          : '<div style="width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,#f43f5e,#ec4899);display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">'+avatar+'</div>';
+        var name = pObj ? pObj.name : p.name;
+        var pct = Math.round(p.count / maxCnt * 100);
+        var medalColors = ['#f59e0b','#9ca3af','#cd7f32'];
+        var medal = idx < 3 ? '<span style="font-size:16px">'+['🥇','🥈','🥉'][idx]+'</span>' : '<span style="font-size:13px;font-weight:700;color:#9ca3af;min-width:22px;text-align:center">#'+(idx+1)+'</span>';
+        chartHtml += '<div style="display:flex;align-items:center;gap:10px;padding:6px 0">';
+        chartHtml += medal;
+        chartHtml += avatarHtml;
+        chartHtml += '<div style="flex:1;min-width:0">';
+        chartHtml += '<div style="font-size:13px;font-weight:700;color:var(--txt,#333);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+pfEsc(name)+'</div>';
+        chartHtml += '<div style="display:flex;align-items:center;gap:8px;margin-top:3px">';
+        chartHtml += '<div style="flex:1;background:'+(isDark?'#333':'#f0f0f0')+';border-radius:6px;height:8px;overflow:hidden">';
+        chartHtml += '<div style="width:'+pct+'%;height:100%;background:linear-gradient(90deg,#f43f5e,#ec4899);border-radius:6px;transition:width .6s ease-out"></div>';
+        chartHtml += '</div>';
+        chartHtml += '<span style="font-size:11px;color:#9ca3af;white-space:nowrap">последний: '+pfEsc(p.last)+'</span>';
+        chartHtml += '</div></div>';
+        chartHtml += '<div style="font-size:22px;font-weight:900;color:#f43f5e;min-width:36px;text-align:right">'+p.count+'</div>';
+        chartHtml += '</div>';
+      });
+      chartEl.innerHTML = chartHtml;
+    }
+  }
+  
+  // Recent
+  var recentEl = document.getElementById('dcThanksRecent');
+  if (recentEl) {
+    var recentItems = th.slice(0, 20);
+    if (!recentItems.length) {
+      recentEl.innerHTML = '<div style="text-align:center;color:#9ca3af;padding:10px;font-size:12px">Пусто</div>';
+    } else {
+      var isDark2 = document.body.classList.contains('dark');
+      var recentHtml = '';
+      recentItems.forEach(function(t) {
+        pfLoad();
+        var pObj = t.profileId ? (_pfProfiles||[]).find(function(x){return x.id===t.profileId;}) : null;
+        var avatar = pObj ? (pObj.avatarEmoji || pObj.avatar || '👤') : '👤';
+        var name = pObj ? pObj.name : (t.profile || 'Гость');
+        recentHtml += '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:'+(isDark2?'#1e1e2e':'#fff')+';border-radius:8px;border:1px solid '+(isDark2?'#333':'#f0f0f0')+'">';
+        recentHtml += '<span style="font-size:18px">'+avatar+'</span>';
+        recentHtml += '<span style="font-size:13px;font-weight:600;color:var(--txt,#333);flex:1">'+pfEsc(name)+'</span>';
+        recentHtml += '<span style="font-size:11px;color:#9ca3af">'+pfEsc(t.time||'')+'</span>';
+        recentHtml += '</div>';
+      });
+      recentEl.innerHTML = recentHtml;
+    }
+  }
+}
 
 // Task 3: Export filling table to Excel
 function exportFillingToExcel() {
@@ -9516,27 +9627,83 @@ function dcAnnouncePreviewShow() {
 // USER PRESENCE SYSTEM — мониторинг пользователей
 // Каждый ПК пишет heartbeat каждые 30 сек в shared/presence/{pcId}
 // ═══════════════════════════════════════════════════════════════
-var _presencePcId = (function(){
-  var id = localStorage.getItem('at_pc_id');
-  if (!id) { id = 'pc_' + Math.random().toString(36).slice(2,10); localStorage.setItem('at_pc_id', id); }
-  return id;
+var _presencePcId = localStorage.getItem('at_pc_id') || ('pc_' + Math.random().toString(36).slice(2,10));
+var _presencePublicIp = '';
+// Запрашиваем публичный IP для идентификации ПК (одинаков во всех браузерах)
+(function fetchPublicIp() {
+  fetch('https://api.ipify.org?format=json')
+    .then(function(r) { return r.json(); })
+    .then(function(d) {
+      if (!d.ip) return;
+      _presencePublicIp = d.ip;
+      // pcId = ip_XXXXXXXX (IP + случайная часть сохранённая в localStorage)
+      var savedSuffix = localStorage.getItem('at_pc_suffix');
+      if (!savedSuffix) {
+        savedSuffix = Math.random().toString(36).slice(2,8);
+        localStorage.setItem('at_pc_suffix', savedSuffix);
+      }
+      var newId = 'ip_' + d.ip.replace(/\./g,'_') + '_' + savedSuffix;
+      if (_presencePcId !== newId) {
+        _presencePcId = newId;
+        localStorage.setItem('at_pc_id', newId);
+        // Обновляем tracking pcId тоже
+        if (typeof _trackingPcId !== 'undefined') _trackingPcId = newId;
+        // Показываем IP в кнопке трекинга
+        var ipBadge = document.getElementById('trackingPcIpBadge');
+        if (ipBadge) ipBadge.textContent = '(' + d.ip + ')';
+        // Переподключаемся с новым pcId
+        setTimeout(_presenceWrite, 500);
+      } else {
+        // Показываем IP даже если pcId не изменился
+        var ipBadge2 = document.getElementById('trackingPcIpBadge');
+        if (ipBadge2) ipBadge2.textContent = '(' + d.ip + ')';
+      }
+    })
+    .catch(function() {
+      // Fallback: используем сохранённый id
+      if (!localStorage.getItem('at_pc_id')) {
+        localStorage.setItem('at_pc_id', _presencePcId);
+      }
+    });
 })();
 var _presenceTimer = null;
 var _presenceCurrentPage = 'home';
 var _presenceCurrentAction = 'Ожидание';
+var _presenceOnlineTs = Date.now(); // Время начала текущей сессии
+
+// T3+T4: Browser detection + versions
+var AT_VERSION = '25.05.1';
+var AT_EXT_VERSION = (function(){
+  try { return chrome && chrome.runtime && chrome.runtime.getManifest ? chrome.runtime.getManifest().version : ''; } catch(e) { return ''; }
+})();
+function _detectBrowser() {
+  var ua = navigator.userAgent;
+  if (ua.includes('Edg/')) return 'Edge';
+  if (ua.includes('OPR/') || ua.includes('Opera/')) return 'Opera';
+  if (ua.includes('YaBrowser/')) return 'Яндекс';
+  if (ua.includes('Chrome/')) return 'Chrome';
+  if (ua.includes('Firefox/')) return 'Firefox';
+  if (ua.includes('Safari/')) return 'Safari';
+  return 'Браузер';
+}
 
 function _presenceWrite() {
   if (!window._fbDb || !window.SHARED_PATH) return;
   var profile = typeof pfGetCurrent === 'function' ? pfGetCurrent() : null;
   var data = {
     pcId: _presencePcId,
+    publicIp: _presencePublicIp || '',
     profileName: profile ? (profile.name || 'Без имени') : 'Не вошёл',
     profileId: profile ? profile.id : null,
     profileAvatar: profile ? (profile.avatarEmoji || profile.avatarImg || '👤') : '👤',
     page: _presenceCurrentPage,
     action: _presenceCurrentAction,
     ts: Date.now(),
-    online: true
+    onlineTs: _presenceOnlineTs || Date.now(),
+    online: true,
+    browser: _detectBrowser(),
+    appVersion: (typeof AT_VERSION !== 'undefined' ? AT_VERSION : ''),
+    extVersion: (typeof AT_EXT_VERSION !== 'undefined' ? AT_EXT_VERSION : '')
   };
   try {
     window._fbDb.ref(window.SHARED_PATH + '/presence/' + _presencePcId).set(data);
@@ -9634,12 +9801,11 @@ function usrRender() {
   var list = document.getElementById('usrList');
   if (!list) return;
   var now = Date.now();
-  var ONLINE_THRESHOLD = 60000; // 60 сек = онлайн
-  var IDLE_THRESHOLD = 300000;  // 5 мин = неактивен
+  var ONLINE_THRESHOLD = 60000;
+  var IDLE_THRESHOLD = 300000;
   
   var users = Object.values(_usrData).sort(function(a,b){ return (b.ts||0)-(a.ts||0); });
   
-  // Фильтрация
   users = users.filter(function(u) {
     var age = now - (u.ts || 0);
     var isOnline = u.online && age < ONLINE_THRESHOLD;
@@ -9649,7 +9815,6 @@ function usrRender() {
     return true;
   });
   
-  // Статистика
   var onlineCount = Object.values(_usrData).filter(function(u){ return u.online && (now-(u.ts||0)) < ONLINE_THRESHOLD; }).length;
   var totalCount = Object.values(_usrData).length;
   var elOn = document.getElementById('usrCountOnline');
@@ -9662,57 +9827,125 @@ function usrRender() {
     return;
   }
   
+  var isDark = document.body.classList.contains('dark');
+  var cardBg = isDark ? '#1e1e2e' : '#fff';
+  var cardBorder = isDark ? '#2d2d3d' : '#e5e7eb';
+  var metaBg = isDark ? '#28283a' : '#f8f9fa';
+  var textColor = isDark ? '#e0e0e0' : '#333';
+  var mutedColor = isDark ? '#9ca3af' : '#6b7280';
+
   var html = '';
   users.forEach(function(u) {
     var age = now - (u.ts || 0);
     var isOnline = u.online && age < ONLINE_THRESHOLD;
-    var isIdle = age >= ONLINE_THRESHOLD && age < IDLE_THRESHOLD;
+    var isIdle = !isOnline && age < IDLE_THRESHOLD;
     var isMe = u.pcId === _presencePcId;
-    var statusText = isOnline ? '🟢 Онлайн' : (isIdle ? '⏸️ Неактивен ' + Math.round(age/60000) + ' мин' : '⚫ Офлайн ' + _usrFormatAge(age));
-    var pageName = _PAGE_NAMES[u.page] || ('📄 ' + (u.page||'?'));
+
+    // Статус
+    var dotColor = isOnline ? '#22c55e' : (isIdle ? '#f59e0b' : '#6b7280');
+    var statusLabel = isOnline ? 'Онлайн' : (isIdle ? 'Неактивен ' + Math.round(age/60000) + ' мин' : 'Офлайн ' + _usrFormatAge(age));
+
+    // Время онлайн (сколько времени в сети)
+    var onlineTimeStr = '';
+    if (isOnline && u.onlineTs) {
+      var onlineDur = now - u.onlineTs;
+      onlineTimeStr = onlineDur < 60000 ? 'менее 1 мин' : (onlineDur < 3600000 ? Math.round(onlineDur/60000) + ' мин' : Math.round(onlineDur/3600000*10)/10 + ' ч');
+    }
+
+    // Аватар
     var avatar = u.profileAvatar || '👤';
-    // Если аватар — это URL картинки
-    var avatarHtml = (avatar && avatar.startsWith('data:')) 
-      ? '<img src="'+avatar+'" style="width:34px;height:34px;border-radius:50%;object-fit:cover">'
-      : '<div style="width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">'+avatar+'</div>';
+    var avatarHtml = (avatar && (avatar.startsWith('data:') || avatar.startsWith('http')))
+      ? '<img src="'+avatar+'" style="width:44px;height:44px;border-radius:50%;object-fit:cover;border:2px solid '+dotColor+';flex-shrink:0">'
+      : '<div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#667eea,#764ba2);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;border:2px solid '+dotColor+'">'+avatar+'</div>';
+
+    // Страница
+    var pageName = _PAGE_NAMES[u.page] || ('📄 ' + (u.page||'?'));
+
+    // Браузер + IP + версии
+    var browserStr = u.browser || '';
+    var ipStr = u.publicIp ? u.publicIp : '';
+    var appVer = u.appVersion || '';
+    var extVer = u.extVersion || '';
+
+    // Совпадение по IP (одинаковый ПК?)
+    var sameIp = ipStr && _presencePublicIp && ipStr === _presencePublicIp && !isMe;
     
-    html += '<div class="usr-card' + (isOnline?' online':'') + '" id="usrCard_'+u.pcId+'">';
-    html += '<div style="display:flex;align-items:center;gap:10px">';
+    var _eid = String(u.pcId).replace(/"/g,'');
+    var _enm = String(u.profileName||'').replace(/"/g,'').replace(/'/g,'');
+
+    html += '<div class="usr-card'+(isOnline?' online':'')+'" id="usrCard_'+_eid+'" style="background:'+cardBg+';border:1.5px solid '+cardBorder+';border-radius:14px;padding:14px 16px;margin-bottom:10px;transition:box-shadow .2s">';
+    
+    // Header row
+    html += '<div style="display:flex;align-items:flex-start;gap:12px">';
     html += avatarHtml;
     html += '<div style="flex:1;min-width:0">';
-    html += '<div style="display:flex;align-items:center;gap:7px">';
-    html += '<div class="usr-dot"></div>';
-    html += '<span class="usr-name">' + (u.profileName||'Неизвестно') + (isMe?' <span style="font-size:10px;background:#667eea;color:#fff;border-radius:4px;padding:1px 5px">ВЫ</span>':'') + '</span>';
-    html += '</div>';
-    html += '<div class="usr-meta">' + statusText + ' &nbsp;|&nbsp; ПК: <code style="font-size:10px;background:#f3f4f6;padding:1px 4px;border-radius:3px">' + (u.pcId||'?') + '</code></div>';
-    html += '</div>';
-    html += '</div>';
     
-    // Текущая активность
-    html += '<div class="usr-activity">';
-    html += '📍 Страница: <b>' + pageName + '</b>';
-    if (u.action && u.action !== 'Ожидание') html += ' &nbsp;•&nbsp; ⚡ ' + u.action;
-    if (u.ts) html += ' &nbsp;•&nbsp; 🕒 ' + new Date(u.ts).toLocaleTimeString('ru-RU');
+    // Name row
+    html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
+    html += '<span style="font-size:15px;font-weight:800;color:'+textColor+'">'+_pfEsc(u.profileName||'Неизвестно')+'</span>';
+    if (isMe) html += '<span style="font-size:10px;background:#667eea;color:#fff;border-radius:4px;padding:2px 6px;font-weight:700">ВЫ</span>';
+    if (sameIp) html += '<span style="font-size:10px;background:#f59e0b;color:#fff;border-radius:4px;padding:2px 6px;font-weight:700">ОДИН ПК</span>';
     html += '</div>';
-    
-    // Действия
+
+    // Status + online time
+    html += '<div style="display:flex;align-items:center;gap:6px;margin-top:4px">';
+    html += '<span style="width:8px;height:8px;border-radius:50%;background:'+dotColor+';flex-shrink:0;display:inline-block"></span>';
+    html += '<span style="font-size:12px;font-weight:600;color:'+dotColor+'">'+statusLabel+'</span>';
+    if (onlineTimeStr) html += '<span style="font-size:11px;color:'+mutedColor+'">• в сети '+onlineTimeStr+'</span>';
+    html += '</div>';
+
+    // Meta row: browser, IP, versions
+    html += '<div style="display:flex;gap:10px;margin-top:5px;flex-wrap:wrap">';
+    if (browserStr) html += '<span style="font-size:11px;color:'+mutedColor+';background:'+metaBg+';padding:2px 6px;border-radius:4px">🌐 '+_pfEsc(browserStr)+'</span>';
+    if (ipStr) html += '<span style="font-size:11px;color:'+mutedColor+';background:'+metaBg+';padding:2px 6px;border-radius:4px">🖧 '+_pfEsc(ipStr)+'</span>';
+    if (appVer) html += '<span style="font-size:11px;color:'+mutedColor+';background:'+metaBg+';padding:2px 6px;border-radius:4px">📦 v'+_pfEsc(appVer)+'</span>';
+    if (extVer) html += '<span style="font-size:11px;color:'+mutedColor+';background:'+metaBg+';padding:2px 6px;border-radius:4px">🔌 ext '+_pfEsc(extVer)+'</span>';
+    html += '</div>';
+
+    html += '</div>'; // flex
+    html += '</div>'; // header row
+
+    // Activity
+    html += '<div style="margin-top:10px;padding:8px 10px;background:'+metaBg+';border-radius:8px;font-size:12px;color:'+textColor+'">';
+    html += '📍 <b>'+pageName+'</b>';
+    if (u.action && u.action !== 'Ожидание') html += ' &nbsp;•&nbsp; ⚡ '+_pfEsc(u.action);
+    if (u.ts) html += ' &nbsp;•&nbsp; 🕒 '+new Date(u.ts).toLocaleTimeString('ru-RU');
+    html += '</div>';
+
+    // Remote control: tab buttons
     if (!isMe) {
-      html += '<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">';
-      var _eid = String(u.pcId).replace(/"/g,'');
-      var _enm = String(u.profileName||'').replace(/"/g,'');
-      html += '<button class="usr-action-btn usr-reload-btn" data-pcid="' + _eid + '" data-act="reload">🔁 Перезагрузить</button>';
-      html += '<button class="usr-action-btn usr-msg-btn" data-pcid="' + _eid + '" data-name="' + _enm + '" data-act="msg">💬 Сообщение</button>';
-      html += '<button class="usr-action-btn usr-logout-btn" data-pcid="' + _eid + '" data-act="logout">🚪 Выйти</button>';
-      html += '<button class="usr-action-btn" style="border-color:#f59e0b;color:#f59e0b;background:#fffbeb" data-pcid="' + _eid + '" data-act="synctimings">⏱️ Тайминги</button>';
-      html += '<button class="usr-action-btn" style="border-color:#0ea5e9;color:#0ea5e9;background:#f0f9ff" data-pcid="' + _eid + '" data-tab="search" data-act="switchtab">🗂️ На вкладку</button>';
-      html += '<button class="usr-action-btn" style="border-color:#ef4444;color:#ef4444;background:#fff5f5" data-pcid="' + _eid + '" data-act="clearhistory">🗑️ Очистить кэш</button>';
+      // Tab switcher
+      var tabList = [
+        {k:'search',l:'🔍 Декларация'},{k:'filling',l:'📦 Наполнение'},{k:'prev',l:'🛡️ Предотвращение'},
+        {k:'boxes',l:'📬 Коробки'},{k:'tracking',l:'📊 Треккинг'},{k:'qr',l:'🔲 QR'},{k:'trbx',l:'📤 TRBX'}
+      ];
+      html += '<div style="margin-top:10px">';
+      html += '<div style="font-size:11px;font-weight:700;color:'+mutedColor+';margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px">Удалённое управление</div>';
+      html += '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">';
+      tabList.forEach(function(t) {
+        html += '<button class="usr-action-btn" style="font-size:11px;padding:4px 8px;border-color:#6366f1;color:#6366f1;background:#eef2ff" data-pcid="'+_eid+'" data-tab="'+t.k+'" data-act="switchtab">'+t.l+'</button>';
+      });
       html += '</div>';
+      
+      // Actions
+      html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+      html += '<button class="usr-action-btn usr-reload-btn" data-pcid="'+_eid+'" data-act="reload">🔁 Перезагрузить</button>';
+      html += '<button class="usr-action-btn usr-msg-btn" data-pcid="'+_eid+'" data-name="'+_enm+'" data-act="msg">💬 Сообщение</button>';
+      html += '<button class="usr-action-btn" style="border-color:#f59e0b;color:#f59e0b;background:#fffbeb" data-pcid="'+_eid+'" data-act="synctimings">⏱️ Тайминги</button>';
+      html += '<button class="usr-action-btn usr-logout-btn" data-pcid="'+_eid+'" data-act="logout">🚪 Выйти</button>';
+      html += '<button class="usr-action-btn" style="border-color:#ef4444;color:#ef4444;background:#fff5f5" data-pcid="'+_eid+'" data-act="clearhistory">🗑️ Очистить кэш</button>';
+      html += '</div>';
+      html += '</div>'; // remote control
     }
-    html += '</div>';
+    html += '</div>'; // card
   });
   list.innerHTML = html;
-  // Проверяем входы/выходы (уведомления)
   try { _usrCheckNotify(users); } catch(e2) {}
+}
+
+function _pfEsc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
 function _usrFormatAge(ms) {
@@ -9803,15 +10036,22 @@ function usrSyncTimings() {
 }
 
 // 3. Переключить вкладку у конкретного ПК
-function usrSwitchTab(pcId, defaultTab) {
-  var tabs = ['search','filling','prev','boxes','tracking','qr','trbx','zayac'];
-    var tab = prompt('Вкладка для ПК ' + pcId + ':', defaultTab || 'search');
-  if (!tab || !tab.trim()) return;
+function usrSwitchTab(pcId, tabName) {
+  if (!tabName) {
+    tabName = prompt('Вкладка для ПК ' + pcId + ' (search/filling/prev/boxes/tracking/qr/trbx):', 'search');
+  }
+  if (!tabName || !tabName.trim()) return;
   if (!window._fbDb || !window.SHARED_PATH) return;
   window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').set({
-    cmd: 'switch_tab', target: pcId, tab: tab.trim(), ts: Date.now(), by: _presencePcId
+    cmd: 'switch_tab', target: pcId, tab: tabName.trim(), ts: Date.now(), by: _presencePcId
   });
-  alert('🗂️ Команда переключения на вкладку «' + tab + '» отправлена');
+  // Краткое визуальное подтверждение без alert
+  var card = document.getElementById('usrCard_' + pcId);
+  if (card) {
+    var origBg = card.style.border;
+    card.style.border = '2px solid #6366f1';
+    setTimeout(function() { card.style.border = origBg; }, 1200);
+  }
 }
 
 // 4. Очистить кэш у ПК
@@ -9966,9 +10206,22 @@ window.addEventListener('AT_fb_ready', function() {
       } else if (cmd.cmd === 'sync_timings' && cmd.timings) {
         // Применяем тайминги от администратора
         try {
-          Object.keys(cmd.timings).forEach(function(k) { DC_TIMINGS[k] = cmd.timings[k]; });
-          window.postMessage({ type: 'AT_TIMINGS_UPDATE', timings: cmd.timings }, '*');
-          logToDevConsole('⏱️ Тайминги синхронизированы от ' + (cmd.by||'admin') + ' (' + Object.keys(cmd.timings).length + ' значений)', 'info');
+          var cnt = 0;
+          Object.keys(cmd.timings).forEach(function(k) {
+            if (DC_TIMING_DEFAULTS[k] !== undefined) {
+              DC_TIMINGS[k] = cmd.timings[k];
+              DC_LOCAL_TIMINGS[k] = cmd.timings[k];
+              window.AT_TIMINGS[k] = cmd.timings[k];
+              cnt++;
+            }
+          });
+          // Сохраняем локально
+          try { localStorage.setItem('at_timings_local', JSON.stringify(DC_LOCAL_TIMINGS)); } catch(e2) {}
+          // Обновляем UI таймингов если открыта панель
+          if (typeof dcRenderTimings === 'function') { _dcTimingsInited = false; dcRenderTimings(_dcCurrentTimingTab||'local'); }
+          window.postMessage({ type: 'AT_TIMINGS_UPDATE', timings: DC_TIMINGS }, '*');
+          logToDevConsole('⏱️ Тайминги синхронизированы от ' + (cmd.by||'admin') + ' (' + cnt + ' значений)', 'success');
+          if (typeof _atAnnounceUpdate === 'function') _atAnnounceUpdate('⏱️ Тайминги обновлены администратором', { mode:'banner', closable:true, effect:'none', color:'green', fontSize:'sm' });
         } catch(e) {}
       } else if (cmd.cmd === 'switch_tab' && cmd.tab) {
         // Переключаемся на вкладку
@@ -13387,6 +13640,8 @@ var _trackingPcId = (function(){
     if (!id) { id = 'pc_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); localStorage.setItem('at_pc_id', id); }
     return id;
 })();
+// Синхронизируем с _presencePcId (который обновляется через IP)
+Object.defineProperty(window, '_trackingPcIdSync', { get: function() { return typeof _presencePcId !== 'undefined' ? _presencePcId : _trackingPcId; } });
 const TRACKING_MAX = 50;
 
 (function(){
@@ -13801,9 +14056,10 @@ function trackingRender(){
         // Значок видимости
         var sc = item.scope || 'all';
         var scIcon = sc==='profile'?'👤':sc==='pc'?'🖥️':'🌐';
-        var scLabel = sc==='profile'?'Профиль':sc==='pc'?'Этот ПК':'Все';
+        var pcIpTip = sc==='pc' ? ' ('+( _presencePublicIp ? _presencePublicIp : (_trackingPcId||'').slice(0,12))+'...)' : '';
+        var scLabel = sc==='profile'?'Профиль':sc==='pc'?('Этот ПК'+pcIpTip):'Все';
         var scColor = sc==='profile'?'#9c27b0':sc==='pc'?'#2196f3':'#4caf50';
-        var scopeCell = '<span style="font-size:11px;font-weight:700;color:'+scColor+';white-space:nowrap">'+scIcon+' '+scLabel+'</span>';
+        var scopeCell = '<span style="font-size:11px;font-weight:700;color:'+scColor+';white-space:nowrap" title="'+(_trackingPcId||'')+'">'+scIcon+' '+scLabel+'</span>';
         // Action buttons
         var actionBtns = '<button onclick="trackingDoCheck(\''+item.shk+'\')" style="padding:4px 8px;background:#2196f3;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;margin-right:4px" title="Проверить сейчас">🔄</button>';
         if(item.paused){
@@ -14258,12 +14514,9 @@ function shkMenuAction(tab, mode) {
     var menu = document.getElementById('shkMenu_' + tab);
     if (menu) menu.style.display = 'none';
   } else if (mode === 'selected') {
-    if (tab === 'filling') {
-      shkReCheckSelected_filling();
-      return;
-    }
-    // Для prev и search: если режим выбора уже открыт — запускаем проверку
-    // Если нет — открываем режим выбора
+    // Единообразное поведение для всех вкладок:
+    // Первый клик → показывает чекбоксы (режим выбора)
+    // Второй клик → запускает проверку выбранных
     if (_shkSelectModeActive !== tab) {
       openShkSelectMode(tab);
       var menu = document.getElementById('shkMenu_' + tab);
