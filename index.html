@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>ArtemenkTools</title>
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cdefs%3E%3ClinearGradient id='grad1' x1='0%25' y1='0%25' x2='100%25' y2='100%25'%3E%3Cstop offset='0%25' style='stop-color:%237B2FF7;stop-opacity:1' /%3E%3Cstop offset='100%25' style='stop-color:%23FFD700;stop-opacity:1' /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' fill='url(%23grad1)' rx='15'/%3E%3Ctext x='50' y='70' font-family='Arial, sans-serif' font-size='50' font-weight='bold' fill='white' text-anchor='middle'%3EAT%3C/text%3E%3C/svg%3E">
+<link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAC9ElEQVR4nO2XMUsrQRDH/3t7BxL1EMVgdVhZ2lgIFhZ2YiG2KhYKATtF/BAWVhZ+Antb4ycwgmilrSASMBIwEXLe7v5f4dt7rrdRH/h4PF4Gtsje7MxvZnZmiQBA/EUJ/qbzHkAP4N8AEEIUDwXfx/2pJbI4JowxCIIAURT9tsMwDJ3fAl0GURAEMMYgSRIcHx8jDEMYYyClxPn5OdbX13F4eIjZ2VlkWQYp5YeOjTGIoghbW1uoVquQUkJr/Rqkb4VhSADc2dmhT5aXlzk+Pu791k3u7+85MDBAIQSFENaXH8AqXVxcUGvNl5cXaq2ZZRmVUmy324zjmBsbGyTJNE2ptXaWUopZlrHT6ZAkNzc3neC6AkgpCYBTU1M0xtAY40SilCJJVqtVAuDp6amz75N6vc7BwcH30fsBLOH+/j5JMssykqTWOjdo9yqVCsvlMpvNZgH24eGBd3d3rNfr3N7edoLrCmDp+vr6eHt7W3Bsxab5+vqaAHh2duZkQSnFyclJ9vf3M45jx/bbVWjDIAgghMDc3BySJIExJp8FV1dXSNPU0e10OhBCeLug1Wrh+fkZT09Pr7fd09LeOUASa2trIAljTL5fqVRwc3MDAHkLWX2fcSllVzgvgBACWmuMjo5ifn4+j1wIgVqthlqthqOjIwBwwLpFZ8F836w4Y0lKCaUUFhcXEccxtNY5/djYGE5OTjA8PPx68N1E84lvjH8IYKNaXV11jGitkSQJkiQBACilvu09yK3Y0TsxMYGZmZl83pMs1DAMQwghCul9m/KP0u7Yeg+wsrKCKIpAMk/hwcEBLi8v8/ldKpWwt7eHUqmUw9kLZ0vzlRI5AFprRFGEhYUFtNvtvP6Pj4/Y3d112g8ApqensbS0hFarBeBXy9lzWusvZcF5DaWUKJfL+V0QQiBNUzSbzTwim/owDDE0NASlFBqNBkZGRgrPc6PRgFLq6wBdlX46/RNSKJSvdXzO3+q9vS+fnSvYQe+fUQ/gfwf4AZRClPNENRxoAAAAAElFTkSuQmCC">
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
 <script>
 // Load SheetJS with fallback CDNs
@@ -1382,7 +1382,7 @@ function initFirebase(){
       // Подписываемся НАПРЯМУЮ на каждую коллекцию — без вложенных child_added
       // _pageLoadTs: записи старше него уже загружены из IDB/LS — не обновляем UI
       var _pageLoadTs = Date.now();
-      var RT_COLS = ['qr','trbx','filling','declaration','zayac','prev','boxes','tracking','profiles','timing_presets','announce','zrating'];
+      var RT_COLS = ['qr','trbx','filling','declaration','zayac','prev','boxes','tracking','profiles','timing_presets','announce','zrating','thanks'];
 
       function _rtHandleSnap(col, itemSnap, eventType){
         var val = itemSnap.val();
@@ -1429,7 +1429,7 @@ function initFirebase(){
           return;
         }
         // Для profiles, tracking, announce — всегда вызываем listener
-        var ALWAYS_SYNC = {profiles:1, tracking:1, timing_presets:1, announce:1, boxes:1, filling:1, zayac:1, prev:1, zrating:1};
+        var ALWAYS_SYNC = {profiles:1, tracking:1, timing_presets:1, announce:1, boxes:1, filling:1, zayac:1, prev:1, zrating:1, thanks:1};
         var isNew = val.ts && val.ts > _pageLoadTs;
         if(isNew || ALWAYS_SYNC[col]){
           try {
@@ -2858,6 +2858,27 @@ window.AT_importData = async function(file){
 <button id="btnPrevAdd" onclick="prevAdd()" class="zBtn">+ Добавить ещё</button>
 <button id="btnPrevClear" onclick="prevClear()" class="zBtn">🗑 Очистить</button>
 <button id="prevCheckBtn" onclick="prevStartCheck()" class="zBtn" style="display:none">▶ Проверить</button>
+<div id="prevShkSelectWrap" style="position:relative;display:inline-block">
+  <button id="prevShkSelectStaticBtn" onclick="toggleShkMenu('prev')" style="padding:10px 16px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;gap:6px;align-items:center;display:none">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="vertical-align:middle"><rect x="3" y="3" width="4" height="4" rx="1"/><rect x="3" y="10" width="4" height="4" rx="1"/><rect x="3" y="17" width="4" height="4" rx="1"/><line x1="10" y1="5" x2="21" y2="5"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="19" x2="21" y2="19"/></svg>
+    Выбрать ШК ▾
+  </button>
+  <div id="shkMenu_prev" style="display:none;position:absolute;top:calc(100% + 6px);left:0;background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.15);z-index:1000;min-width:220px;overflow:hidden">
+    <div style="padding:8px 12px;background:#f8f9fa;border-bottom:1px solid #e0e0e0;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.5px">Проверка ШК</div>
+    <button onclick="shkMenuAction('prev','auto');toggleShkMenu('prev')" style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 16px;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:#333;border-bottom:1px solid #f0f0f0;text-align:left" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background='none'">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      Проверить ШК без инфо
+    </button>
+    <button onclick="shkMenuAction('prev','selected');toggleShkMenu('prev')" style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 16px;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:#333;border-bottom:1px solid #f0f0f0;text-align:left" onmouseover="this.style.background='#f0f4ff'" onmouseout="this.style.background='none'">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2.5"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      Перепроверить выбранные
+    </button>
+    <button onclick="toggleShkMenu('prev')" style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 16px;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:#888;text-align:left" onmouseover="this.style.background='#fff5f5'" onmouseout="this.style.background='none'">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      Отмена
+    </button>
+  </div>
+</div>
 <button id="prevControlBtn" class="zBtn" style="display:none">⏸️ Пауза</button>
 <button id="prevStopBtn" onclick="prevStop()" class="zBtn" style="display:none;background:#f44336;color:#fff">⏹ Стоп</button>
 <button onclick="prevOpenHistory()" class="zBtn" style="background:#e3f2fd;color:#0066cc;border:2px solid #90caf9">📜 История</button>
@@ -7961,12 +7982,24 @@ function sayThanks(btn){
 	updateThanksDisplay();
 	var pName=(typeof pfAttr==='function'&&pfAttr()?pfAttr():'Гость');
 	var pId=_pfCurrentId||'';
-	logToDevConsole('💖 Спасибо нажал: '+pName,'info');
-	// Save to thanks history
+	var ts=Date.now();
+	var entry={id:ts, profile:pName, profileId:pId, time:new Date().toLocaleString('ru-RU'), ts:ts, pcId:_presencePcId||''};
+	logToDevConsole('💖 Спасибо нажал: '+pName,'success');
+	// Save to localStorage history
 	var th=[];try{th=JSON.parse(localStorage.getItem('thanksHistory')||'[]');}catch(e){}
-	th.unshift({id:Date.now(),profile:pName,profileId:pId,time:new Date().toLocaleString('ru-RU'),ts:Date.now()});
-	if(th.length>200)th=th.slice(0,200);
+	th.unshift(entry);
+	if(th.length>500)th=th.slice(0,500);
 	localStorage.setItem('thanksHistory',JSON.stringify(th));
+	// Save to Firebase (shared across all PCs)
+	try{
+		if(typeof AT_rtPush==='function'){
+			AT_rtPush('thanks', String(ts), entry);
+		} else if(window._fbDb && window.SHARED_PATH){
+			window._fbDb.ref(window.SHARED_PATH+'/thanks/'+String(ts)).set({d:JSON.stringify(entry),ts:ts});
+		}
+	}catch(e2){}
+	// Refresh stats panel if open
+	try{ dcThanksRefresh(); }catch(e3){}
 	navigator.clipboard.writeText('4276070018711616').then(function(){}).catch(function(){});
 	// Heart animation
 	var heart=document.createElement('div');heart.innerHTML='🙏❤️';
@@ -8072,8 +8105,31 @@ function updateThanksDisplay() {
 }
 
 function dcThanksRefresh() {
-  var th = [];
-  try { th = JSON.parse(localStorage.getItem('thanksHistory') || '[]'); } catch(e) {}
+  // Load from localStorage (local)
+  var thLocal = [];
+  try { thLocal = JSON.parse(localStorage.getItem('thanksHistory') || '[]'); } catch(e) {}
+  
+  // Also load from Firebase RT if available
+  if (window._fbDb && window.SHARED_PATH) {
+    window._fbDb.ref(window.SHARED_PATH + '/thanks').once('value', function(snap) {
+      var rtData = snap.val() || {};
+      var rtItems = Object.values(rtData).map(function(v) {
+        try { return v.d ? JSON.parse(v.d) : null; } catch(e) { return null; }
+      }).filter(Boolean);
+      // Merge with localStorage, deduplicate by id
+      var merged = {};
+      thLocal.forEach(function(t) { if (t && t.id) merged[t.id] = t; });
+      rtItems.forEach(function(t) { if (t && t.id) merged[t.id] = t; });
+      var th = Object.values(merged).sort(function(a,b) { return (b.ts||0)-(a.ts||0); });
+      _dcThanksRender(th);
+    });
+    return;
+  }
+  var th = thLocal.slice().sort(function(a,b) { return (b.ts||0)-(a.ts||0); });
+  _dcThanksRender(th);
+}
+
+function _dcThanksRender(th) {
   
   var total = th.length;
   var todayStart = new Date(); todayStart.setHours(0,0,0,0);
@@ -9630,41 +9686,59 @@ function dcAnnouncePreviewShow() {
 var _presencePcId = localStorage.getItem('at_pc_id') || ('pc_' + Math.random().toString(36).slice(2,10));
 var _presencePublicIp = '';
 // Запрашиваем публичный IP для идентификации ПК (одинаков во всех браузерах)
-(function fetchPublicIp() {
+(function buildMachineFingerprint() {
+  // Аппаратный fingerprint: стабилен на одном ПК во всех браузерах
+  // Отличается на разных ПК даже в одной сети (не зависит от IP)
+  // Основан на: разрешение экрана + кол-во ядер + ОЗУ + часовой пояс + язык + платформа
+  function _fpHash(str) {
+    var h = 5381;
+    for (var i = 0; i < str.length; i++) {
+      h = ((h << 5) + h) ^ str.charCodeAt(i);
+      h = h & h; // keep 32bit
+    }
+    return (h >>> 0).toString(36).padStart(6, '0');
+  }
+  
+  var tz = '';
+  try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch(e) {}
+  
+  var parts = [
+    screen.width + 'x' + screen.height,          // Разрешение экрана
+    screen.availWidth + 'x' + screen.availHeight, // Рабочая область
+    String(screen.colorDepth || 24),              // Глубина цвета
+    String(navigator.hardwareConcurrency || 0),   // Кол-во CPU ядер
+    String(navigator.deviceMemory || 0),          // Оперативная память GB
+    navigator.platform || '',                     // Платформа (Win32, MacIntel...)
+    tz,                                           // Часовой пояс
+    // Дополнительная энтропия: DPI и масштаб
+    String(Math.round((window.devicePixelRatio || 1) * 100))
+  ];
+  
+  var fpStr = parts.join('||');
+  var fpHash = _fpHash(fpStr);
+  
+  // pcId = fp_ХЭШХЭШХЭШ — уникален для каждого физического ПК
+  var newId = 'fp_' + fpHash;
+  
+  if (_presencePcId !== newId) {
+    _presencePcId = newId;
+    localStorage.setItem('at_pc_id', newId);
+    // Синхронизировать с tracking
+    if (typeof _trackingPcId !== 'undefined') _trackingPcId = newId;
+    // Показываем fingerprint в кнопке трекинга
+    var badge = document.getElementById('trackingPcIpBadge');
+    if (badge) badge.textContent = '(' + fpHash + ')';
+    setTimeout(_presenceWrite, 300);
+  } else {
+    var badge2 = document.getElementById('trackingPcIpBadge');
+    if (badge2) badge2.textContent = '(' + fpHash + ')';
+  }
+  
+  // IP запрашиваем отдельно только для отображения в Users панели
   fetch('https://api.ipify.org?format=json')
     .then(function(r) { return r.json(); })
-    .then(function(d) {
-      if (!d.ip) return;
-      _presencePublicIp = d.ip;
-      // pcId = ip_XXXXXXXX (IP + случайная часть сохранённая в localStorage)
-      var savedSuffix = localStorage.getItem('at_pc_suffix');
-      if (!savedSuffix) {
-        savedSuffix = Math.random().toString(36).slice(2,8);
-        localStorage.setItem('at_pc_suffix', savedSuffix);
-      }
-      var newId = 'ip_' + d.ip.replace(/\./g,'_') + '_' + savedSuffix;
-      if (_presencePcId !== newId) {
-        _presencePcId = newId;
-        localStorage.setItem('at_pc_id', newId);
-        // Обновляем tracking pcId тоже
-        if (typeof _trackingPcId !== 'undefined') _trackingPcId = newId;
-        // Показываем IP в кнопке трекинга
-        var ipBadge = document.getElementById('trackingPcIpBadge');
-        if (ipBadge) ipBadge.textContent = '(' + d.ip + ')';
-        // Переподключаемся с новым pcId
-        setTimeout(_presenceWrite, 500);
-      } else {
-        // Показываем IP даже если pcId не изменился
-        var ipBadge2 = document.getElementById('trackingPcIpBadge');
-        if (ipBadge2) ipBadge2.textContent = '(' + d.ip + ')';
-      }
-    })
-    .catch(function() {
-      // Fallback: используем сохранённый id
-      if (!localStorage.getItem('at_pc_id')) {
-        localStorage.setItem('at_pc_id', _presencePcId);
-      }
-    });
+    .then(function(d) { if (d && d.ip) _presencePublicIp = d.ip; })
+    .catch(function() {});
 })();
 var _presenceTimer = null;
 var _presenceCurrentPage = 'home';
@@ -9687,6 +9761,30 @@ function _detectBrowser() {
   return 'Браузер';
 }
 
+
+function _buildRemoteState() {
+  // Publish current page state for remote control visibility
+  try {
+    var state = { ts: Date.now() };
+    var page = _presenceCurrentPage;
+    if (page === 'search' && typeof searchTableData !== 'undefined' && searchTableData) {
+      state.rowCount = searchTableData.length;
+      state.checkedCount = Object.keys(typeof searchCheckedMap !== 'undefined' ? searchCheckedMap : {}).length;
+      state.lastItems = searchTableData.slice(-3).map(function(r){ return r.goods_id || r.wbsticker_id || ''; }).filter(Boolean);
+    } else if (page === 'filling' && typeof fillingTableData !== 'undefined' && fillingTableData) {
+      state.rowCount = fillingTableData.length;
+    } else if (page === 'prev' && typeof prevDataset !== 'undefined' && prevDataset) {
+      state.rowCount = prevDataset.length;
+      state.checkedCount = Object.keys(prevCheckedMap || {}).length;
+    } else if (page === 'boxes' && typeof boxesMemory !== 'undefined') {
+      state.rowCount = (boxesMemory && boxesMemory.length) || 0;
+    } else if (page === 'tracking' && typeof trackingItems !== 'undefined') {
+      state.rowCount = (trackingItems && trackingItems.length) || 0;
+    }
+    return state;
+  } catch(e) { return {}; }
+}
+
 function _presenceWrite() {
   if (!window._fbDb || !window.SHARED_PATH) return;
   var profile = typeof pfGetCurrent === 'function' ? pfGetCurrent() : null;
@@ -9703,7 +9801,8 @@ function _presenceWrite() {
     online: true,
     browser: _detectBrowser(),
     appVersion: (typeof AT_VERSION !== 'undefined' ? AT_VERSION : ''),
-    extVersion: (typeof AT_EXT_VERSION !== 'undefined' ? AT_EXT_VERSION : '')
+    extVersion: (typeof AT_EXT_VERSION !== 'undefined' ? AT_EXT_VERSION : ''),
+    remoteState: _buildRemoteState()
   };
   try {
     window._fbDb.ref(window.SHARED_PATH + '/presence/' + _presencePcId).set(data);
@@ -9912,30 +10011,16 @@ function usrRender() {
     if (u.ts) html += ' &nbsp;•&nbsp; 🕒 '+new Date(u.ts).toLocaleTimeString('ru-RU');
     html += '</div>';
 
-    // Remote control: tab buttons
+    // Single remote control button
     if (!isMe) {
-      // Tab switcher
-      var tabList = [
-        {k:'search',l:'🔍 Декларация'},{k:'filling',l:'📦 Наполнение'},{k:'prev',l:'🛡️ Предотвращение'},
-        {k:'boxes',l:'📬 Коробки'},{k:'tracking',l:'📊 Треккинг'},{k:'qr',l:'🔲 QR'},{k:'trbx',l:'📤 TRBX'}
-      ];
-      html += '<div style="margin-top:10px">';
-      html += '<div style="font-size:11px;font-weight:700;color:'+mutedColor+';margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px">Удалённое управление</div>';
-      html += '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">';
-      tabList.forEach(function(t) {
-        html += '<button class="usr-action-btn" style="font-size:11px;padding:4px 8px;border-color:#6366f1;color:#6366f1;background:#eef2ff" data-pcid="'+_eid+'" data-tab="'+t.k+'" data-act="switchtab">'+t.l+'</button>';
-      });
-      html += '</div>';
-      
-      // Actions
-      html += '<div style="display:flex;gap:6px;flex-wrap:wrap">';
+      html += '<div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">';
+      html += '<button class="usr-action-btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px" data-pcid="'+_eid+'" data-name="'+_enm+'" data-act="remote">';
+      html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>';
+      html += ' Удалённое управление</button>';
       html += '<button class="usr-action-btn usr-reload-btn" data-pcid="'+_eid+'" data-act="reload">🔁 Перезагрузить</button>';
       html += '<button class="usr-action-btn usr-msg-btn" data-pcid="'+_eid+'" data-name="'+_enm+'" data-act="msg">💬 Сообщение</button>';
       html += '<button class="usr-action-btn" style="border-color:#f59e0b;color:#f59e0b;background:#fffbeb" data-pcid="'+_eid+'" data-act="synctimings">⏱️ Тайминги</button>';
-      html += '<button class="usr-action-btn usr-logout-btn" data-pcid="'+_eid+'" data-act="logout">🚪 Выйти</button>';
-      html += '<button class="usr-action-btn" style="border-color:#ef4444;color:#ef4444;background:#fff5f5" data-pcid="'+_eid+'" data-act="clearhistory">🗑️ Очистить кэш</button>';
       html += '</div>';
-      html += '</div>'; // remote control
     }
     html += '</div>'; // card
   });
@@ -10004,12 +10089,13 @@ function usrHandleClick(e) {
   var act  = btn.getAttribute('data-act');
   var pcId = btn.getAttribute('data-pcid');
   var name = btn.getAttribute('data-name') || '';
-  if (act === 'reload') usrReloadPc(pcId);
-  else if (act === 'msg')    usrSendMsg(pcId, name);
-  else if (act === 'logout') usrForceLogout(pcId);
+  if (act === 'reload')       usrReloadPc(pcId);
+  else if (act === 'msg')     usrSendMsg(pcId, name);
+  else if (act === 'logout')  usrForceLogout(pcId);
   else if (act === 'synctimings') usrSendTimings(pcId);
-  else if (act === 'switchtab') { var tab = btn.getAttribute('data-tab'); usrSwitchTab(pcId, tab); }
+  else if (act === 'switchtab')   { var tab = btn.getAttribute('data-tab'); usrSwitchTab(pcId, tab); }
   else if (act === 'clearhistory') usrClearCache(pcId);
+  else if (act === 'remote')  usrOpenRemote(pcId, name);
 }
 
 // ── 8 новых функций Users ────────────────────────────────────────
@@ -10023,6 +10109,232 @@ function usrSendTimings(pcId) {
   });
   alert('⏱️ Тайминги отправлены на ПК ' + pcId);
 }
+
+// ── Remote Control ──────────────────────────────────────────────
+
+function usrOpenRemote(pcId, profileName) {
+  var userData = _usrData[pcId];
+  if (!userData) { alert('ПК ' + pcId + ' не найден в базе'); return; }
+  
+  // Create fullscreen overlay modal
+  var existing = document.getElementById('usrRemoteModal');
+  if (existing) existing.remove();
+  
+  var modal = document.createElement('div');
+  modal.id = 'usrRemoteModal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:99998;background:rgba(0,0,0,0.75);display:flex;flex-direction:column;align-items:stretch';
+  
+  var isDark = document.body.classList.contains('dark');
+  var bgPanel = isDark ? '#1a1a2e' : '#f8f9fa';
+  var bgMain  = isDark ? '#12121f' : '#fff';
+  var txtCol  = isDark ? '#e0e0e0' : '#1a1a2e';
+  
+  modal.innerHTML = `
+    <div style="display:flex;flex-direction:column;height:100%;max-height:100vh">
+      <!-- Header bar -->
+      <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+        <span style="font-size:14px;font-weight:800">Удалённое управление</span>
+        <span style="font-size:12px;opacity:.8">—</span>
+        <span style="font-size:13px;font-weight:600" id="remoteProfileName">${_pfEsc(profileName||pcId)}</span>
+        <span id="remoteLiveStatus" style="font-size:11px;background:rgba(255,255,255,.2);border-radius:12px;padding:2px 10px;margin-left:4px">🔴 подключение...</span>
+        <div style="flex:1"></div>
+        <!-- Quick tab buttons -->
+        <div style="display:flex;gap:4px">
+          ${['search','filling','prev','boxes','tracking','qr','trbx'].map(function(t){
+            var lbl = {search:'Декларация',filling:'Наполнение',prev:'Предотвращение',boxes:'Коробки',tracking:'Треккинг',qr:'QR',trbx:'TRBX'}[t];
+            return '<button onclick="usrRemoteSwitchTab(\'' + t + '\')" style="padding:4px 8px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:5px;cursor:pointer;font-size:11px;font-weight:600">' + lbl + '</button>';
+          }).join('')}
+        </div>
+        <button onclick="document.getElementById(\'usrRemoteModal\').remove();usrStopRemoteWatch();" 
+          style="margin-left:12px;background:rgba(255,255,255,.2);border:none;border-radius:6px;color:#fff;cursor:pointer;padding:6px 12px;font-size:13px;font-weight:700">✕ Закрыть</button>
+      </div>
+      
+      <!-- Main area: left = state panel, right = controls -->
+      <div style="display:flex;flex:1;overflow:hidden;gap:0">
+        
+        <!-- Left: live state mirror -->
+        <div style="flex:1;overflow-y:auto;background:${bgMain};padding:16px">
+          <!-- Page info banner -->
+          <div id="remotePageBanner" style="background:${bgPanel};border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:${txtCol}">
+            📍 Загружаем данные...
+          </div>
+          <!-- Live data mirror -->
+          <div id="remoteLiveMirror" style="font-size:13px;color:${txtCol}">
+            <div style="text-align:center;color:#9ca3af;padding:40px">⏳ Ожидаем данные с ПК...</div>
+          </div>
+        </div>
+        
+        <!-- Right: control panel -->
+        <div style="width:280px;flex-shrink:0;background:${bgPanel};border-left:1.5px solid ${isDark?'#2d2d3d':'#e5e7eb'};padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:10px">
+          <div style="font-size:12px;font-weight:800;color:#667eea;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">🎮 Управление</div>
+          
+          <button onclick="usrRemoteCmd('reload')" style="width:100%;padding:9px;background:#fff;border:1.5px solid #e5e7eb;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:#374151;text-align:left">🔁 Перезагрузить страницу</button>
+          
+          <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;margin-top:6px">Синхронизация</div>
+          <button onclick="usrRemoteCmd('synctimings')" style="width:100%;padding:9px;background:#fffbeb;border:1.5px solid #f59e0b;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:#d97706;text-align:left">⏱️ Отправить тайминги</button>
+          <button onclick="usrRemoteCmd('force_sync')" style="width:100%;padding:9px;background:#eff6ff;border:1.5px solid #3b82f6;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:#1d4ed8;text-align:left">🔄 Принудительная синхронизация</button>
+          
+          <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;margin-top:6px">Сообщение</div>
+          <div style="display:flex;gap:6px">
+            <input id="remoteMsg" placeholder="Введите сообщение..." style="flex:1;padding:8px;border:1.5px solid #e5e7eb;border-radius:6px;font-size:12px">
+            <button onclick="usrRemoteSendMsg()" style="padding:8px 12px;background:#6366f1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700">→</button>
+          </div>
+          
+          <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;margin-top:6px">Последние события</div>
+          <div id="remoteEventLog" style="font-size:11px;color:#6b7280;background:${isDark?'#1e1e2e':'#f9fafb'};border-radius:6px;padding:8px;min-height:80px;max-height:200px;overflow-y:auto">
+            <div style="color:#9ca3af">Ожидаем события...</div>
+          </div>
+          
+          <div style="margin-top:auto;padding-top:10px;border-top:1px solid ${isDark?'#2d2d3d':'#e5e7eb'}">
+            <div style="font-size:10px;color:#9ca3af;text-align:center">ПК ID: ${_pfEsc(pcId)}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // Start watching this PC
+  usrStartRemoteWatch(pcId);
+  
+  // Store current target
+  window._remoteControlPcId = pcId;
+  window._remoteControlProfileName = profileName;
+}
+
+var _remoteWatchUnsubscribe = null;
+
+function usrStartRemoteWatch(pcId) {
+  // Unsubscribe previous
+  usrStopRemoteWatch();
+  
+  if (!window._fbDb || !window.SHARED_PATH) {
+    var banner = document.getElementById('remotePageBanner');
+    if (banner) banner.innerHTML = '❌ Firebase не подключён — удалённый доступ недоступен';
+    return;
+  }
+  
+  var ref = window._fbDb.ref(window.SHARED_PATH + '/presence/' + pcId);
+  _remoteWatchUnsubscribe = ref;
+  
+  ref.on('value', function(snap) {
+    var u = snap.val();
+    if (!u) return;
+    
+    var statusEl = document.getElementById('remoteLiveStatus');
+    var bannerEl = document.getElementById('remotePageBanner');
+    var mirrorEl = document.getElementById('remoteLiveMirror');
+    var logEl    = document.getElementById('remoteEventLog');
+    
+    if (!statusEl) return; // modal closed
+    
+    var age = Date.now() - (u.ts || 0);
+    var isOnline = u.online && age < 60000;
+    
+    statusEl.textContent = isOnline ? '🟢 онлайн' : '⚫ офлайн';
+    statusEl.style.background = isOnline ? 'rgba(34,197,94,.25)' : 'rgba(107,114,128,.25)';
+    
+    // Page banner
+    var pageName = (typeof _PAGE_NAMES !== 'undefined' && _PAGE_NAMES[u.page]) || ('📄 ' + (u.page||'?'));
+    var actionTxt = (u.action && u.action !== 'Ожидание') ? ' ⚡ ' + _pfEsc(u.action) : '';
+    var timeTxt = u.ts ? new Date(u.ts).toLocaleTimeString('ru-RU') : '';
+    if (bannerEl) {
+      bannerEl.innerHTML = '<b>📍 ' + pageName + '</b>' + actionTxt +
+        (timeTxt ? ' <span style="color:#9ca3af;font-size:11px">• ' + timeTxt + '</span>' : '') +
+        '<br><span style="font-size:11px;color:#9ca3af">👤 ' + _pfEsc(u.profileName||'?') +
+        ' &nbsp;|&nbsp; 🌐 ' + _pfEsc(u.browser||'?') +
+        (u.publicIp ? ' &nbsp;|&nbsp; 🖧 ' + _pfEsc(u.publicIp) : '') + '</span>';
+    }
+    
+    // Mirror current page data
+    if (mirrorEl) {
+      var html = '';
+      
+      // Show current tab summary
+      var tabIcon = {search:'🔍',filling:'📦',prev:'🛡️',boxes:'📬',tracking:'📊',qr:'🔲',trbx:'📤'}[u.page] || '📄';
+      html += '<div style="background:linear-gradient(135deg,#f0f4ff,#e8f4fd);border:1.5px solid #c7d2fe;border-radius:10px;padding:12px 16px;margin-bottom:12px">';
+      html += '<div style="font-size:13px;font-weight:700;color:#4338ca">' + tabIcon + ' Активная вкладка: <b>' + pageName + '</b></div>';
+      if (u.action && u.action !== 'Ожидание') {
+        html += '<div style="font-size:12px;color:#6366f1;margin-top:4px">⚡ ' + _pfEsc(u.action) + '</div>';
+      }
+      html += '</div>';
+      
+      // Remote state data (if published)
+      if (u.remoteState) {
+        try {
+          var state = typeof u.remoteState === 'string' ? JSON.parse(u.remoteState) : u.remoteState;
+          if (state.rowCount !== undefined) {
+            html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">';
+            html += '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 12px;font-size:12px"><b>' + state.rowCount + '</b><br><span style="color:#6b7280">строк</span></div>';
+            if (state.checkedCount !== undefined) html += '<div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:8px 12px;font-size:12px"><b>' + state.checkedCount + '</b><br><span style="color:#6b7280">проверено</span></div>';
+            if (state.failedCount !== undefined) html += '<div style="background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;padding:8px 12px;font-size:12px"><b>' + state.failedCount + '</b><br><span style="color:#6b7280">ошибок</span></div>';
+            html += '</div>';
+          }
+          if (state.lastItems && state.lastItems.length) {
+            html += '<div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin-bottom:6px">Последние элементы</div>';
+            state.lastItems.forEach(function(item) {
+              html += '<div style="padding:6px 10px;background:#f9fafb;border-radius:6px;border:1px solid #f0f0f0;font-size:12px;margin-bottom:4px;font-family:monospace">' + _pfEsc(item) + '</div>';
+            });
+          }
+        } catch(e2) {}
+      } else {
+        html += '<div style="text-align:center;color:#9ca3af;padding:20px;font-size:12px">ℹ️ Данные страницы не опубликованы этим ПК</div>';
+      }
+      
+      mirrorEl.innerHTML = html;
+    }
+    
+    // Log event
+    if (logEl && u.action && u.action !== 'Ожидание') {
+      var time = new Date().toLocaleTimeString('ru-RU');
+      var logLine = '<div style="padding:2px 0;border-bottom:1px solid #f0f0f0">' +
+        '<span style="color:#9ca3af">' + time + '</span> ' + _pfEsc(u.action) + '</div>';
+      logEl.insertAdjacentHTML('afterbegin', logLine);
+      if (logEl.children.length > 20) logEl.removeChild(logEl.lastChild);
+    }
+  });
+}
+
+function usrStopRemoteWatch() {
+  if (_remoteWatchUnsubscribe) {
+    try { _remoteWatchUnsubscribe.off('value'); } catch(e) {}
+    _remoteWatchUnsubscribe = null;
+  }
+}
+
+function usrRemoteSwitchTab(tab) {
+  var pcId = window._remoteControlPcId;
+  if (!pcId) return;
+  usrSwitchTab(pcId, tab);
+}
+
+function usrRemoteCmd(cmd) {
+  var pcId = window._remoteControlPcId;
+  if (!pcId || !window._fbDb || !window.SHARED_PATH) return;
+  if (cmd === 'reload') usrReloadPc(pcId);
+  else if (cmd === 'synctimings') usrSendTimings(pcId);
+  else if (cmd === 'force_sync') {
+    window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').set({
+      cmd: 'force_sync', target: pcId, ts: Date.now(), by: _presencePcId
+    });
+  }
+}
+
+function usrRemoteSendMsg() {
+  var pcId = window._remoteControlPcId;
+  var inp = document.getElementById('remoteMsg');
+  if (!pcId || !inp || !inp.value.trim()) return;
+  usrSendMsg(pcId, '');
+  var msg = inp.value.trim();
+  inp.value = '';
+  if (!window._fbDb || !window.SHARED_PATH) return;
+  window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').set({
+    cmd: 'message', target: pcId, message: msg, ts: Date.now(), by: _presencePcId
+  });
+}
+
 
 // 2. Синхронизация таймингов на все ПК
 function usrSyncTimings() {
@@ -14041,9 +14353,10 @@ function trackingRender(){
     var visibleItems = trackingItems.filter(function(item) {
         var s = item.scope || 'all';
         if (s === 'all') return true;
-        // scope='pc': фильтруем по profileId (одинаково в любом браузере одного профиля)
-        if (s === 'pc') return (curPid && item.profileId && item.profileId === curPid) || (!item.profileId && (!item.pcId || item.pcId === _trackingPcId));
-        if (s === 'profile') return item.profileId === curPid;
+        // scope='pc': только элементы добавленные на ЭТОМ ПК (по hardware fingerprint)
+        if (s === 'pc') return !item.pcId || item.pcId === _trackingPcId;
+        // scope='profile': только мой профиль, на любом ПК
+        if (s === 'profile') return item.profileId && item.profileId === curPid;
         return true;
     });
 
@@ -14352,7 +14665,7 @@ function prevOnComplete(){
 // Show/hide select button for each tab
 function shkShowSelectBtn(tab, show) {
   // For search and filling, new icon buttons; for prev, old dropdown btn
-  var btnId = { search:'searchShkSelectBtn', filling:'fillingShkSelectBtn', prev:'prevSelectShkBtn' }[tab];
+  var btnId = { search:'searchShkSelectBtn', filling:'fillingShkSelectBtn', prev:'prevShkSelectStaticBtn' }[tab];
   var btn = document.getElementById(btnId);
   if (btn) btn.style.display = show ? 'inline-flex' : 'none';
 }
@@ -14378,7 +14691,7 @@ function toggleShkMenu(tab) {
 document.addEventListener('click', function(e) {
   if (!_shkMenuOpen) return;
   var menu = document.getElementById('shkMenu_' + _shkMenuOpen);
-  var btn  = document.getElementById({ search:'searchSelectShkBtn', filling:'fillingSelectShkBtn', prev:'prevSelectShkBtn' }[_shkMenuOpen]);
+  var btn  = document.getElementById({ search:'searchSelectShkBtn', filling:'fillingSelectShkBtn', prev:'prevShkSelectStaticBtn' }[_shkMenuOpen]);
   if (menu && !menu.contains(e.target) && btn && !btn.contains(e.target)) {
     menu.style.display = 'none';
     _shkMenuOpen = null;
@@ -14399,7 +14712,7 @@ function openShkSelectMode(tab) {
   // Show action panel
   shkShowActionPanel(tab);
   // Highlight icon button
-  var btnId = {search:'searchShkSelectBtn', filling:'fillingShkSelectBtn', prev:'prevSelectShkBtn'}[tab];
+  var btnId = {search:'searchShkSelectBtn', filling:'fillingShkSelectBtn', prev:'prevShkSelectStaticBtn'}[tab];
   var btn = document.getElementById(btnId);
   if (btn) { btn.style.background = 'linear-gradient(135deg,#4c3aaa,#5a2d8a)'; btn.style.boxShadow = '0 0 0 3px rgba(102,126,234,0.4)'; }
   // Close on outside click
@@ -14419,7 +14732,7 @@ function closeShkSelectMode() {
   var panel = document.getElementById('shkActionPanel_' + tab);
   if (panel) panel.style.display = 'none';
   // Reset icon button
-  var btnId = {search:'searchShkSelectBtn', filling:'fillingShkSelectBtn', prev:'prevSelectShkBtn'}[tab];
+  var btnId = {search:'searchShkSelectBtn', filling:'fillingShkSelectBtn', prev:'prevShkSelectStaticBtn'}[tab];
   var btn = document.getElementById(btnId);
   if (btn) { btn.style.background = 'linear-gradient(135deg,#667eea,#764ba2)'; btn.style.boxShadow = ''; }
   document.removeEventListener('click', _shkOutsideHandler, true);
@@ -14430,7 +14743,7 @@ function _shkOutsideHandler(e) {
   var panel = document.getElementById('shkActionPanel_' + _shkSelectModeActive);
   var tableId = {search:'searchTableWrap', filling:'fillingTableWrap', prev:'prevTableWrap'}[_shkSelectModeActive];
   var table = document.getElementById(tableId);
-  var btnId = {search:'searchShkSelectBtn', filling:'fillingShkSelectBtn', prev:'prevSelectShkBtn'}[_shkSelectModeActive];
+  var btnId = {search:'searchShkSelectBtn', filling:'fillingShkSelectBtn', prev:'prevShkSelectStaticBtn'}[_shkSelectModeActive];
   var btn = document.getElementById(btnId);
   if ((panel && panel.contains(e.target)) ||
       (table && table.contains(e.target)) ||
@@ -14622,8 +14935,8 @@ function shkAutoSelectAndCheck_search() {
   if (!goodsIds.length) { alert('Нет ШК для проверки.'); return; }
   logToDevConsole('🔍 Авто-выбор ШК без инфо: ' + goodsIds.length + ' шт', 'info', 'decl');
   window._searchCheckOrigIndexes = missingIdxs.slice();
-  // partial=false — берётся вся таблица по порядку, _searchCheckOrigIndexes используется для маппинга
-  startCheckingStickers(goodsIds, false, 0, false);
+  // partial=true — проверяем ТОЛЬКО выбранные, результат вставляется по origIndexes
+  startCheckingStickers(goodsIds, false, 0, true);
 }
 
 function shkReCheckSelected_search() {
@@ -14763,10 +15076,12 @@ function shkReCheckSelected(tab) {
 // Check if prevStartCheckItems exists, if not use wrapper
 function prevStartCheckItems(stickers, origIndexes) {
   if (!stickers || !stickers.length) return;
+  // Передаём origIndexes прямо в сообщение — content.js не может читать window переменные
   window._prevCheckOrigIndexes = (origIndexes && origIndexes.length) ? origIndexes : null;
   sendToExtension({
     type: 'CHECK_PREV_ITEMS',
     stickers: stickers,
+    origIndexes: (origIndexes && origIndexes.length) ? origIndexes : null,
     resumeFrom: 0
   });
   prevIsChecking = true;
@@ -14826,9 +15141,7 @@ function prevRender(){
     var h = '<div style="border-radius:12px;padding:18px;box-shadow:0 2px 10px rgba(0,0,0,'+(isDark?'0.3':'0.1')+');background:'+(isDark?'#1a1a1a':'#fff')+'">'
         +'<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px">'
         +'<h2 style="font-size:18px;margin:0;font-weight:800;color:'+txt+'">Найдено: <span style="color:#6366f1">'+prevDataset.length+'</span></h2>'
-        +'<div style="display:flex;gap:8px;align-items:center">'
-        +'<div style="position:relative;display:inline-block">'+'<button id="prevSelectShkBtn" onclick="toggleShkMenu(\'prev\')" style="padding:8px 12px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px">'+'<svg width=\'13\' height=\'13\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'currentColor\' stroke-width=\'2.5\' style=\'vertical-align:middle\'><rect x=\'3\' y=\'3\' width=\'4\' height=\'4\' rx=\'1\'/><rect x=\'3\' y=\'10\' width=\'4\' height=\'4\' rx=\'1\'/><rect x=\'3\' y=\'17\' width=\'4\' height=\'4\' rx=\'1\'/><line x1=\'10\' y1=\'5\' x2=\'21\' y2=\'5\'/><line x1=\'10\' y1=\'12\' x2=\'21\' y2=\'12\'/><line x1=\'10\' y1=\'19\' x2=\'21\' y2=\'19\'/></svg>'+'Выбрать ШК ▾</button>'+'<div id="shkMenu_prev" style="display:none;position:absolute;top:calc(100% + 6px);right:0;background:#fff;border:1.5px solid #e0e0e0;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,0.15);z-index:1000;min-width:220px;overflow:hidden">'+'<div style="padding:8px 12px;background:#f8f9fa;border-bottom:1px solid #e0e0e0;font-size:11px;font-weight:700;color:#555;text-transform:uppercase;letter-spacing:0.5px">Проверка ШК</div>'+'<button onclick="shkMenuAction(\'prev\',\'auto\');toggleShkMenu(\'prev\')" style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 16px;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:#333;border-bottom:1px solid #f0f0f0;text-align:left" onmouseover="this.style.background=\'#f0f4ff\'" onmouseout="this.style.background=\'none\'">'+'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#667eea" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>'+'Проверить ШК без инфо</button>'+'<button onclick="shkMenuAction(\'prev\',\'selected\');toggleShkMenu(\'prev\')" style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 16px;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:#333;border-bottom:1px solid #f0f0f0;text-align:left" onmouseover="this.style.background=\'#f0f4ff\'" onmouseout="this.style.background=\'none\'">'+'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#4caf50" stroke-width="2.5"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>'+'Перепроверить выбранные</button>'+'<button onclick="toggleShkMenu(\'prev\')" style="display:flex;align-items:center;gap:10px;width:100%;padding:11px 16px;background:none;border:none;cursor:pointer;font-size:13px;font-weight:600;color:#888;text-align:left" onmouseover="this.style.background=\'#fff5f5\'" onmouseout="this.style.background=\'none\'">'+'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>'+'Отмена</button>'+'</div>'+'</div>'
-        +'</div>'
+        
         +'</div>'
         +'<div style="max-height:600px;overflow-y:auto;overflow-x:auto;border:1px solid '+bd+';border-radius:10px">'
         +'<table class="prevTable" style="min-width:1200px;width:100%;border-collapse:collapse;font-size:13px">'
