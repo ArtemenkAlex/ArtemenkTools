@@ -1659,10 +1659,6 @@ window.AT_importData = async function(file){
 <button onclick="openDevConsole()" style="width:100%;padding:12px;background:#333;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;margin-bottom:10px">🔧 Консоль разработчика</button>
 <button onclick="nav('pro');closeSet()" style="width:100%;padding:12px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">⭐ ArtemenkPRO</button>
 <button onclick="atAssistantOpen();closeSet()" style="width:100%;margin-top:8px;padding:12px;background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px">🤖 Ассистент</button>
-<button onclick="atAssistantOpen();closeSet()" style="width:100%;margin-top:8px;padding:12px;background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-  🤖 Ассистент
-</button>
 </div>
 
 <div class="setItem" style="border-top:1px solid #eee;padding-top:15px;margin-top:10px;text-align:center">
@@ -1739,11 +1735,7 @@ window.AT_importData = async function(file){
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
     Пользователи
   </button>
-  <button onclick="devSwitchTab('assistant')" id="dcTab_assistant"
-    style="display:flex;align-items:center;gap:6px;padding:11px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all 0.2s;white-space:nowrap">
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-    🤖 Ассистент
-  </button>
+
 </div>
 
 <!-- ── PANEL: LOGS ── -->
@@ -3367,7 +3359,7 @@ function dcApplyAccessMode(restricted) {
 function devSwitchTab(tab) {
   // В ограниченном режиме разрешены только logs и timings
   if (_devConsoleRestricted && tab !== 'logs' && tab !== 'timings') return;
-  ['logs','terminal','timings','export','memory','thanks','announce','users','assistant'].forEach(function(t) {
+  ['logs','terminal','timings','export','memory','thanks','announce','users'].forEach(function(t) {
     var panel = document.getElementById('dcPanel_'+t);
     var btn   = document.getElementById('dcTab_'+t);
     if (!panel || !btn) return;
@@ -9714,15 +9706,14 @@ var _presencePublicIp = '';
   try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch(e) {}
   
   var parts = [
-    screen.width + 'x' + screen.height,          // Разрешение экрана
-    screen.availWidth + 'x' + screen.availHeight, // Рабочая область
-    String(screen.colorDepth || 24),              // Глубина цвета
-    String(navigator.hardwareConcurrency || 0),   // Кол-во CPU ядер
-    String(navigator.deviceMemory || 0),          // Оперативная память GB
-    navigator.platform || '',                     // Платформа (Win32, MacIntel...)
-    tz,                                           // Часовой пояс
-    // Дополнительная энтропия: DPI и масштаб
-    String(Math.round((window.devicePixelRatio || 1) * 100))
+    screen.width + 'x' + screen.height,          // Разрешение экрана (одинаково в Chrome/Firefox)
+    String(screen.colorDepth || 24),              // Глубина цвета (стабильно)
+    String(navigator.hardwareConcurrency || 0),   // Кол-во CPU ядер (стабильно)
+    // deviceMemory НАМЕРЕНО УБРАН: Chrome=8, Firefox=undefined — разные значения!
+    navigator.platform || '',                     // Платформа (Win32 — одинаково)
+    tz,                                           // Часовой пояс (одинаково)
+    String(Math.round((window.devicePixelRatio || 1) * 100))  // DPI (одинаково)
+    // screen.availWidth УБРАН: зависит от положения панели задач и может меняться
   ];
   
   var fpStr = parts.join('||');
@@ -10142,7 +10133,7 @@ function _remoteStartPublishing() {
   if (_remotePublishInterval) return;
   // Публикуем сразу + каждые 2 секунды
   _remoteDoPublish();
-  _remotePublishInterval = setInterval(_remoteDoPublish, 2000);
+  _remotePublishInterval = setInterval(_remoteDoPublish, 1500);
   window.addEventListener('click', _remoteDoPublish);
   window.addEventListener('keyup', _remoteDoPublish);
 }
@@ -10162,33 +10153,41 @@ function _remoteStopPublishing() {
 function _remoteDoPublish() {
   if (!window._fbDb || !window.SHARED_PATH || !_presencePcId) return;
   try {
-    // Серилализуем видимую часть интерфейса
-    var mainEl = document.getElementById('mainContent') || document.querySelector('.main-content') || document.body;
+    // Найти активную вкладку/панель
+    var mainEl = null;
+    // Попробуем найти видимую панель (tab content)
+    var panels = document.querySelectorAll('[id^="panel_"], [id^="dcPanel_"], .tabPanel, .tab-content');
+    for (var pi = 0; pi < panels.length; pi++) {
+      var ps = panels[pi].style;
+      if (ps.display !== 'none' && ps.visibility !== 'hidden') {
+        mainEl = panels[pi]; break;
+      }
+    }
+    if (!mainEl) mainEl = document.getElementById('app') || document.getElementById('root') || document.body;
     
-    // Клонируем и очищаем скрипты из снапшота
+    // Клонируем, убираем скрипты и чувствительные данные
     var clone = mainEl.cloneNode(true);
-    clone.querySelectorAll('script').forEach(function(s) { s.remove(); });
-    // Убираем input пароли
-    clone.querySelectorAll('input[type="password"]').forEach(function(i) { i.value = ''; });
+    clone.querySelectorAll('script, noscript').forEach(function(s) { s.remove(); });
+    clone.querySelectorAll('input[type="password"]').forEach(function(i) { i.value = ''; i.setAttribute('value',''); });
+    // Убираем большие base64 изображения для уменьшения размера
+    clone.querySelectorAll('img[src^="data:"]').forEach(function(img) {
+      img.src = ''; img.style.background = '#e5e7eb'; img.style.width = img.style.width || '40px'; img.style.height = img.style.height || '40px';
+    });
     
-    var html = clone.outerHTML;
+    var htmlSnap = clone.outerHTML;
     
-    // Простое сжатие: LZString если есть, иначе обрезаем
-    var compressed = html;
-    if (typeof LZString !== 'undefined') {
-      compressed = LZString.compressToUTF16(html);
-    } else {
-      // Обрезаем до 100KB чтобы не превышать лимит Firebase
-      if (compressed.length > 100000) compressed = compressed.slice(0, 100000) + '...TRUNCATED';
+    // Ограничение Firebase: ~1MB. Сжимаем или обрезаем
+    if (htmlSnap.length > 800000) {
+      htmlSnap = htmlSnap.slice(0, 800000) + '</div></div><!-- TRUNCATED -->';
     }
     
     window._fbDb.ref(window.SHARED_PATH + '/remote_screen/' + _presencePcId).set({
-      html: compressed,
+      html: htmlSnap,
       ts: Date.now(),
       pcId: _presencePcId,
-      compressed: typeof LZString !== 'undefined'
+      compressed: false
     });
-  } catch(e) {}
+  } catch(e) { console.warn('Remote publish error:', e); }
 }
 
 // Слушаем команды от админа
@@ -10319,7 +10318,7 @@ function usrOpenRemote(pcId, profileName) {
     <!-- Screen iframe -->
     <iframe id="rcScreenFrame" 
       style="width:100%;height:100%;border:none;display:none;background:#fff"
-      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+      sandbox="allow-scripts allow-forms"
       title="Remote Screen">
     </iframe>
     
@@ -10398,35 +10397,32 @@ function _rcUpdateScreen(data) {
   _rcScreenTs = now;
   
   // Build complete HTML document for iframe
-  var doc = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-  * { pointer-events: none !important; user-select: none !important; }
-  body { margin: 0; padding: 0; overflow: hidden; background: #f8f9fa; }
-  [data-rc-clickable] { pointer-events: auto !important; cursor: pointer !important; }
-  /* Scale to fit */
-  body { transform-origin: top left; }
-</style>
-</head>
-<body>
-${html}
-</body>
-</html>`;
+  var doc = '<!DOCTYPE html><html><head>' +
+    '<meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+    '<style>' +
+    '* { pointer-events: none !important; user-select: none !important; box-sizing: border-box; }' +
+    'body { margin: 0; padding: 8px; overflow: auto; background: #f8f9fa; font-family: -apple-system, sans-serif; }' +
+    '::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }' +
+    'img { max-width: 100%; }' +
+    'button, input, select, textarea { pointer-events: none !important; opacity: 0.85; }' +
+    '</style>' +
+    '</head>' +
+    '<body>' + html + '</body></html>';
   
-  // Update iframe via blob URL
+  // Update iframe via srcdoc (no CORS issues, no injected.js loading)
   try {
-    var blob = new Blob([doc], { type: 'text/html' });
-    var url = URL.createObjectURL(blob);
-    var oldSrc = frame.getAttribute('data-blob-url');
-    frame.src = url;
-    if (oldSrc) setTimeout(function(){ URL.revokeObjectURL(oldSrc); }, 2000);
-    frame.setAttribute('data-blob-url', url);
-  } catch(e) {
-    // Fallback: srcdoc
     frame.srcdoc = doc;
+  } catch(e) {
+    // Fallback: blob URL
+    try {
+      var blob = new Blob([doc], { type: 'text/html' });
+      var url = URL.createObjectURL(blob);
+      var oldSrc = frame.getAttribute('data-blob-url');
+      frame.src = url;
+      if (oldSrc) setTimeout(function(){ URL.revokeObjectURL(oldSrc); }, 2000);
+      frame.setAttribute('data-blob-url', url);
+    } catch(e2) {}
   }
   
   // Show frame, hide overlay
@@ -10851,19 +10847,103 @@ pfLogout() — выйти из профиля
 };
 
 function atAssistantOpen() {
-  // Open dev console on assistant tab
-  if (typeof openDevConsole === 'function') openDevConsole();
+  // Open standalone assistant modal (no password required)
+  var modal = document.getElementById('assistantModal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  // Apply dark theme
+  var box = document.getElementById('asstModalBox');
+  if (box) {
+    var isDark = document.body.classList.contains('dark');
+    box.style.background = isDark ? '#1a1a2e' : '#fff';
+  }
+  // Focus input
   setTimeout(function() {
-    if (typeof devSwitchTab === 'function') devSwitchTab('assistant');
+    var inp = document.getElementById('atAsstInput');
+    if (inp) inp.focus();
   }, 100);
+  _atAsstUpdateStatus();
+}
+
+function atAssistantClose() {
+  var modal = document.getElementById('assistantModal');
+  if (modal) modal.style.display = 'none';
+}
+
+function atAsstShowApiKeyPrompt() {
+  // Показываем встроенный промпт для ввода API ключа
+  var msgs = document.getElementById('atAsstMessages');
+  if (!msgs) return;
+  
+  var isDark = document.body.classList.contains('dark');
+  var el = document.createElement('div');
+  el.className = 'at-asst-key-prompt';
+  el.innerHTML = '<div style="padding:14px;background:' + (isDark?'#1e1e2e':'#eff6ff') + ';border-radius:12px;border:1.5px solid ' + (isDark?'#3b82f6':'#bfdbfe') + '">' +
+    '<div style="font-size:13px;font-weight:700;color:#3b82f6;margin-bottom:8px">🔑 Нужен API ключ</div>' +
+    '<div style="font-size:12px;color:' + (isDark?'#94a3b8':'#374151') + ';margin-bottom:10px;line-height:1.6">' +
+    'Введите ключ от одного из бесплатных сервисов:<br>' +
+    '• <a href="https://console.groq.com" target="_blank" style="color:#3b82f6">Groq</a> (gsk_...) — быстрый, бесплатно<br>' +
+    '• <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#3b82f6">Google AI Studio</a> (AIza...) — бесплатно<br>' +
+    '• <a href="https://openrouter.ai/keys" target="_blank" style="color:#3b82f6">OpenRouter</a> (sk-or-...) — бесплатные модели' +
+    '</div>' +
+    '<div style="display:flex;gap:6px">' +
+    '<input id="atAsstKeyInput" placeholder="Вставьте API ключ..." style="flex:1;padding:8px 10px;border:1.5px solid #3b82f6;border-radius:8px;font-size:12px;background:' + (isDark?'#0f172a':'#fff') + ';color:' + (isDark?'#e2e8f0':'#111') + ';outline:none">' +
+    '<button onclick="atAsstSaveKey()" style="padding:8px 14px;background:#3b82f6;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700">Сохранить</button>' +
+    '</div>' +
+    '</div>';
+  msgs.appendChild(el);
+  msgs.scrollTop = msgs.scrollHeight;
+  var inp = document.getElementById('atAsstKeyInput');
+  if (inp) inp.focus();
+}
+
+function atAsstShowKeySettings() {
+  // Open API key settings
+  var msgs = document.getElementById('atAsstMessages');
+  if (!msgs) return;
+  // Remove old prompts
+  msgs.querySelectorAll('.at-asst-key-prompt').forEach(function(el){ el.remove(); });
+  atAsstShowApiKeyPrompt();
+}
+
+function atAsstSaveKey() {
+  var inp = document.getElementById('atAsstKeyInput');
+  if (!inp || !inp.value.trim()) return;
+  var key = inp.value.trim();
+  try { localStorage.setItem('at_asst_api_key', key); } catch(e) {}
+  
+  // Detect provider from key format
+  var providerName = 'Unknown';
+  if (key.startsWith('gsk_')) providerName = 'Groq';
+  else if (key.startsWith('sk-or-')) providerName = 'OpenRouter';
+  else if (key.startsWith('AIza')) providerName = 'Google Gemini';
+  
+  // Remove prompt
+  document.querySelectorAll('.at-asst-key-prompt').forEach(function(el){ el.remove(); });
+  _atAsstAddMsg('assistant', '✅ API ключ сохранён! Провайдер: **' + providerName + '**\n\nТеперь можете задавать вопросы. Чем могу помочь?');
+  _atAsstUpdateStatus();
 }
 
 function atAssistantInit() {
-  // Initialize assistant panel
-  var inp = document.getElementById('atAsstInput');
-  if (inp && !inp.dataset.inited) {
-    inp.dataset.inited = '1';
-    inp.focus();
+  // Initialize assistant - add Escape key listener
+  if (!window._atAsstEscInited) {
+    window._atAsstEscInited = true;
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        var modal = document.getElementById('assistantModal');
+        if (modal && modal.style.display === 'flex') {
+          atAssistantClose();
+          e.stopPropagation();
+        }
+      }
+    });
+    // Click outside to close
+    var modal = document.getElementById('assistantModal');
+    if (modal) {
+      modal.addEventListener('click', function(e) {
+        if (e.target === modal) atAssistantClose();
+      });
+    }
   }
   _atAsstUpdateStatus();
 }
@@ -10871,8 +10951,14 @@ function atAssistantInit() {
 function _atAsstUpdateStatus() {
   var el = document.getElementById('atAsstStatus');
   if (!el) return;
-  el.textContent = 'Готов • ' + (_AT_ASST.provider === 'deepseek' ? 'DeepSeek' : 'Yandex AI') + 
-    ' • ' + _AT_ASST.messages.filter(function(m){return m.role==='user';}).length + ' сообщений';
+  var key = '';
+  try { key = localStorage.getItem('at_asst_api_key') || ''; } catch(e) {}
+  var provider = 'Нет ключа';
+  if (key.startsWith('gsk_')) provider = 'Groq (llama-3.3-70b)';
+  else if (key.startsWith('sk-or-')) provider = 'OpenRouter (DeepSeek)';
+  else if (key.startsWith('AIza') || (key.length > 30 && !key.startsWith('AQVN'))) provider = 'Google Gemini';
+  var cnt = _AT_ASST.messages.filter(function(m){return m.role==='user';}).length;
+  el.textContent = provider + (cnt > 0 ? ' • ' + cnt + ' сообщений' : '');
 }
 
 function atAssistantClear() {
@@ -11025,23 +11111,13 @@ async function atAsstSend() {
     
   } catch(err) {
     _atAsstRemoveTyping();
-    var errMsg = '❌ Ошибка API: ' + (err.message || String(err));
-    // Try fallback provider
-    if (_AT_ASST.provider === 'deepseek') {
-      _AT_ASST.provider = 'yandex';
-      try {
-        var reply2 = await _atAsstCallAPI(text);
-        _atAsstRemoveTyping();
-        _atAsstAddMsg('assistant', '*(переключился на Yandex AI)*\n\n' + reply2);
-        _AT_ASST.messages.push({ role: 'assistant', content: reply2 });
-        _atAsstExecuteActions(reply2);
-        _AT_ASST.provider = 'deepseek'; // reset
-      } catch(err2) {
-        _atAsstAddMsg('assistant', errMsg + '\n\nПопробуйте ещё раз или проверьте подключение к интернету.', {error: true});
-        _AT_ASST.provider = 'deepseek';
-      }
+    var errMsg = err.message || String(err);
+    if (errMsg === 'NO_KEY' || errMsg.includes('401') || errMsg.includes('403')) {
+      // Нет API ключа — показываем подсказку
+      _atAsstShowApiKeyPrompt();
     } else {
-      _atAsstAddMsg('assistant', errMsg, {error: true});
+      _atAsstAddMsg('assistant', '❌ Ошибка: ' + errMsg +
+        '\n\n**Нужен API ключ.** Нажмите кнопку **⚙️ API ключ** вверху и введите ключ от [Groq](https://console.groq.com) (бесплатно) или [Google Gemini](https://aistudio.google.com/app/apikey) (бесплатно).', {error: true});
     }
   }
   
@@ -11060,14 +11136,32 @@ async function _atAsstCallAPI(userText) {
   }
   
   // Add conversation history (last 10 messages)
-  var hist = _AT_ASST.messages.slice(-10);
-  msgs = msgs.concat(hist);
+  msgs = msgs.concat(_AT_ASST.messages.slice(-10));
   
-  if (_AT_ASST.provider === 'deepseek') {
-    return await _atAsstDeepSeek(msgs);
-  } else {
-    return await _atAsstYandex(msgs);
+  // Определяем API ключ пользователя (если ввёл)
+  var userKey = '';
+  try { userKey = localStorage.getItem('at_asst_api_key') || ''; } catch(e) {}
+  
+  // Провайдеры в порядке приоритета (только CORS-friendly API)
+  var providers = [
+    { name: 'groq', key: userKey || 'gsk_default' },
+    { name: 'openrouter', key: userKey || '' },
+    { name: 'gemini', key: userKey || '' }
+  ];
+  
+  // Если у пользователя есть ключ — определить провайдер по формату
+  if (userKey) {
+    if (userKey.startsWith('gsk_')) {
+      return await _atAsstGroq(msgs, userKey);
+    } else if (userKey.startsWith('sk-or-')) {
+      return await _atAsstOpenRouter(msgs, userKey);
+    } else if (userKey.length > 20 && !userKey.startsWith('AQVN')) {
+      return await _atAsstGemini(msgs, userKey);
+    }
   }
+  
+  // Если нет ключа — используем встроенную модель через Claude artifact API
+  return await _atAsstClaudeArtifact(msgs);
 }
 
 function _atAsstGetContext() {
@@ -11097,65 +11191,120 @@ function _atAsstGetContext() {
   return ctx.join('\n');
 }
 
-async function _atAsstDeepSeek(messages) {
-  // DeepSeek использует OpenAI-совместимый API через Yandex Proxy
-  // Ключ: AQVN069ZFBSUwZ_mX7oGutycl5NWPRA_qTIwbENB
-  var response = await fetch('https://llm.api.cloud.yandex.net/foundationModels/v1/completion', {
+// ── CORS-friendly API Providers ────────────────────────────────────
+
+async function _atAsstClaudeArtifact(messages) {
+  // Используем Anthropic Claude API — встроенный в AT.html (как Claude artifact)
+  // Этот endpoint поддерживает CORS из браузера
+  var sysMsg = messages.filter(function(m){ return m.role === 'system'; })
+    .map(function(m){ return m.content; }).join('\n\n');
+  var userMsgs = messages.filter(function(m){ return m.role !== 'system'; });
+  
+  var response = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Api-Key ' + _AT_ASST.deepseekKey,
-      'x-folder-id': _AT_ASST.yandexKeyId
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: JSON.stringify({
-      modelUri: 'ds://v1:' + _AT_ASST.yandexKeyId + '/deepseek-r1',
-      completionOptions: { stream: false, temperature: 0.5, maxTokens: 2000 },
-      messages: messages.map(function(m) {
-        return { role: m.role === 'system' ? 'system' : (m.role === 'user' ? 'user' : 'assistant'), text: m.content };
-      })
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 1500,
+      system: sysMsg || _AT_ASST.systemPrompt,
+      messages: userMsgs.length > 0 ? userMsgs : [{ role: 'user', content: 'Привет!' }]
     })
   });
   
+  if (response.status === 401 || response.status === 403) {
+    // Нет API ключа — показываем подсказку
+    throw new Error('NO_KEY');
+  }
   if (!response.ok) {
     var errText = await response.text();
-    throw new Error('DeepSeek HTTP ' + response.status + ': ' + errText.slice(0, 200));
+    throw new Error('API ' + response.status + ': ' + errText.slice(0, 150));
   }
-  
   var data = await response.json();
-  if (data.result && data.result.alternatives && data.result.alternatives[0]) {
-    return data.result.alternatives[0].message.text;
+  if (data.content && data.content[0] && data.content[0].text) {
+    return data.content[0].text;
   }
-  throw new Error('DeepSeek: unexpected response format');
+  throw new Error('Unexpected response');
 }
 
-async function _atAsstYandex(messages) {
-  // Yandex GPT через AI Studio
-  var response = await fetch('https://llm.api.cloud.yandex.net/foundationModels/v1/completion', {
+async function _atAsstGroq(messages, apiKey) {
+  // Groq API — очень быстрый, бесплатный tier, поддерживает CORS
+  // Получить ключ: https://console.groq.com
+  var sysMsg = messages.filter(function(m){ return m.role==='system'; }).map(function(m){ return m.content; }).join('\n');
+  var chatMsgs = messages.filter(function(m){ return m.role!=='system'; });
+  if (sysMsg) chatMsgs = [{ role: 'system', content: sysMsg }].concat(chatMsgs);
+  
+  var response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Api-Key ' + _AT_ASST.deepseekKey,
-      'x-folder-id': _AT_ASST.yandexKeyId
+      'Authorization': 'Bearer ' + apiKey
     },
     body: JSON.stringify({
-      modelUri: 'gpt://' + _AT_ASST.yandexKeyId + '/yandexgpt-lite',
-      completionOptions: { stream: false, temperature: 0.5, maxTokens: 2000 },
-      messages: messages.map(function(m) {
-        return { role: m.role === 'system' ? 'system' : (m.role === 'user' ? 'user' : 'assistant'), text: m.content };
-      })
+      model: 'llama-3.3-70b-versatile',
+      messages: chatMsgs,
+      max_tokens: 1500,
+      temperature: 0.5
     })
   });
-  
-  if (!response.ok) {
-    var errText = await response.text();
-    throw new Error('Yandex HTTP ' + response.status + ': ' + errText.slice(0, 200));
-  }
-  
+  if (!response.ok) { var e = await response.text(); throw new Error('Groq ' + response.status + ': ' + e.slice(0,150)); }
   var data = await response.json();
-  if (data.result && data.result.alternatives && data.result.alternatives[0]) {
-    return data.result.alternatives[0].message.text;
+  return data.choices[0].message.content;
+}
+
+async function _atAsstOpenRouter(messages, apiKey) {
+  // OpenRouter — поддерживает CORS, много моделей включая DeepSeek
+  var sysMsg = messages.filter(function(m){ return m.role==='system'; }).map(function(m){ return m.content; }).join('\n');
+  var chatMsgs = messages.filter(function(m){ return m.role!=='system'; });
+  if (sysMsg) chatMsgs = [{ role: 'system', content: sysMsg }].concat(chatMsgs);
+  
+  var response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer ' + apiKey,
+      'HTTP-Referer': 'https://artemenkalex.github.io',
+      'X-Title': 'ArtemenkTools'
+    },
+    body: JSON.stringify({
+      model: 'deepseek/deepseek-r1-0528-qwen3-8b:free',
+      messages: chatMsgs,
+      max_tokens: 1500
+    })
+  });
+  if (!response.ok) { var e = await response.text(); throw new Error('OpenRouter ' + response.status + ': ' + e.slice(0,150)); }
+  var data = await response.json();
+  return data.choices[0].message.content;
+}
+
+async function _atAsstGemini(messages, apiKey) {
+  // Google Gemini API — бесплатный tier, поддерживает CORS
+  // Получить ключ: https://aistudio.google.com/app/apikey
+  var contents = [];
+  var systemParts = [];
+  messages.forEach(function(m) {
+    if (m.role === 'system') { systemParts.push(m.content); }
+    else { contents.push({ role: m.role === 'assistant' ? 'model' : 'user', parts: [{ text: m.content }] }); }
+  });
+  if (contents.length === 0) contents = [{ role: 'user', parts: [{ text: 'Привет!' }] }];
+  
+  var body = { contents: contents, generationConfig: { maxOutputTokens: 1500, temperature: 0.5 } };
+  if (systemParts.length) body.systemInstruction = { parts: [{ text: systemParts.join('\n') }] };
+  
+  var response = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=' + apiKey, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  if (!response.ok) { var e = await response.text(); throw new Error('Gemini ' + response.status + ': ' + e.slice(0,150)); }
+  var data = await response.json();
+  if (data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts) {
+    return data.candidates[0].content.parts.map(function(p){ return p.text||''; }).join('');
   }
-  throw new Error('Yandex: unexpected response format');
+  throw new Error('Gemini: unexpected response');
 }
 
 function _atAsstExecuteActions(reply) {
@@ -11222,6 +11371,9 @@ function atFloatAsstSend() {
     msgs.scrollTop = msgs.scrollHeight;
   }
 }
+
+// Initialize assistant modal on load
+setTimeout(atAssistantInit, 1200);
 
 // Quick access function
 function atAssistantAsk(text) {
@@ -16783,56 +16935,62 @@ function syncFloatingConsole() {
 </script>
 
 
-<!-- ══ PANEL: ASSISTANT ══ -->
-<div id="dcPanel_assistant" style="display:none;flex-direction:column;flex:1;overflow:hidden;min-height:0">
-  <!-- Assistant header -->
-  <div style="flex-shrink:0;padding:14px 20px;border-bottom:1px solid var(--border,#e5e7eb);background:var(--bg2,#fafafa)">
-    <div style="display:flex;align-items:center;gap:10px">
-      <div style="width:36px;height:36px;background:linear-gradient(135deg,#06b6d4,#3b82f6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🤖</div>
-      <div>
-        <div style="font-size:14px;font-weight:800;color:var(--text,#111)">Ассистент ArtemenkTools</div>
-        <div style="font-size:11px;color:#9ca3af" id="atAsstStatus">Готов к работе • Powered by DeepSeek + Yandex AI</div>
+
+
+<!-- ══ ASSISTANT MODAL ══ -->
+<div id="assistantModal" style="display:none;position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.5);align-items:center;justify-content:center">
+  <div style="width:min(760px,96vw);height:min(600px,92vh);display:flex;flex-direction:column;border-radius:16px;overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,0.4)" id="asstModalBox">
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;padding:14px 20px;display:flex;align-items:center;gap:12px;flex-shrink:0">
+      <div style="width:34px;height:34px;background:rgba(255,255,255,.2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px">🤖</div>
+      <div style="flex:1">
+        <div style="font-size:14px;font-weight:800">Ассистент ArtemenkTools</div>
+        <div style="font-size:11px;opacity:.8" id="atAsstStatus">Готов к работе</div>
       </div>
-      <div style="flex:1"></div>
-      <button onclick="atAssistantClear()" style="padding:5px 12px;background:none;border:1.5px solid #e5e7eb;border-radius:6px;cursor:pointer;font-size:12px;color:#6b7280" title="Очистить диалог">🗑️ Очистить</button>
-    </div>
-  </div>
-  
-  <!-- Chat messages -->
-  <div id="atAsstMessages" style="flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:10px">
-    <!-- Messages inserted here -->
-    <div id="atAsstWelcome" style="text-align:center;padding:30px 20px;color:#9ca3af">
-      <div style="font-size:40px;margin-bottom:12px">🤖</div>
-      <div style="font-size:14px;font-weight:700;color:var(--text,#374151);margin-bottom:8px">Ассистент ArtemenkTools</div>
-      <div style="font-size:12px;max-width:400px;margin:0 auto;line-height:1.6">
-        Я знаю всё о сайте ArtemenkTools. Могу помочь настроить тайминги, объяснить работу вкладок, переключить вкладки, изменить настройки. Задайте вопрос!
+      <button onclick="atAsstShowKeySettings()" title="Настройки API ключа"
+        style="padding:5px 10px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;cursor:pointer;font-size:12px;margin-right:4px">⚙️ API ключ</button>
+      <div style="display:none"><!-- close div for flex 1 --></div
       </div>
-      <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center">
-        <button onclick="atAsstQuickAsk('Как работает вкладка Декларация?')" style="padding:6px 12px;background:#eff6ff;color:#3b82f6;border:1px solid #bfdbfe;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600">🔍 Декларация</button>
-        <button onclick="atAsstQuickAsk('Что делает вкладка Коробки?')" style="padding:6px 12px;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600">📬 Коробки</button>
-        <button onclick="atAsstQuickAsk('Как настроить тайминги?')" style="padding:6px 12px;background:#fefce8;color:#d97706;border:1px solid #fde68a;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600">⏱️ Тайминги</button>
-        <button onclick="atAsstQuickAsk('Как работает удалённое управление пользователями?')" style="padding:6px 12px;background:#faf5ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600">🖥️ Пользователи</button>
-        <button onclick="atAsstQuickAsk('Открой вкладку Трекинг')" style="padding:6px 12px;background:#fff7ed;color:#ea580c;border:1px solid #fed7aa;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600">📊 Трекинг</button>
+      <div style="display:flex;gap:6px">
+        <button onclick="atAssistantClear()" title="Очистить диалог"
+          style="padding:5px 10px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:6px;cursor:pointer;font-size:11px">🗑️</button>
+        <button onclick="atAssistantClose()"
+          style="padding:5px 12px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:8px;cursor:pointer;font-size:15px;font-weight:700">✕</button>
       </div>
     </div>
-  </div>
-  
-  <!-- Input area -->
-  <div style="flex-shrink:0;padding:12px 16px;border-top:1.5px solid var(--border,#e5e7eb);background:var(--bg2,#fafafa)">
-    <div style="display:flex;gap:8px;align-items:flex-end">
-      <textarea id="atAsstInput" 
-        placeholder="Спросите что-нибудь об ArtemenkTools... (Enter — отправить, Shift+Enter — новая строка)"
-        style="flex:1;resize:none;min-height:44px;max-height:120px;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px;font-family:inherit;background:var(--bg,#fff);color:var(--text,#111);outline:none;line-height:1.5;overflow-y:auto"
-        rows="1"
-        onkeydown="atAsstKeydown(event)"
-        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"></textarea>
-      <button id="atAsstSendBtn" onclick="atAsstSend()" 
-        style="width:44px;height:44px;background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
-      </button>
+    
+    <!-- Messages area -->
+    <div id="atAsstMessages" style="flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:10px;background:var(--bg,#fff)">
+      <div id="atAsstWelcome" style="text-align:center;padding:24px 16px;color:#9ca3af">
+        <div style="font-size:44px;margin-bottom:10px">🤖</div>
+        <div style="font-size:15px;font-weight:800;color:var(--text,#374151);margin-bottom:6px">Ассистент ArtemenkTools</div>
+        <div style="font-size:12px;max-width:380px;margin:0 auto;line-height:1.7;color:#6b7280">
+          Я знаю всё о сайте. Могу объяснить как работают вкладки, помочь с настройками, изменить тайминги, переключить вкладку.
+        </div>
+        <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center">
+          <button onclick="atAsstQuickAsk('Как работает вкладка Декларация?')" style="padding:6px 12px;background:#eff6ff;color:#3b82f6;border:1px solid #bfdbfe;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600">🔍 Декларация</button>
+          <button onclick="atAsstQuickAsk('Что делает вкладка Коробки на входе?')" style="padding:6px 12px;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600">📬 Коробки</button>
+          <button onclick="atAsstQuickAsk('Как настроить тайминги для ускорения работы?')" style="padding:6px 12px;background:#fefce8;color:#d97706;border:1px solid #fde68a;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600">⏱️ Тайминги</button>
+          <button onclick="atAsstQuickAsk('Как работает Трекинг ШК?')" style="padding:6px 12px;background:#fff7ed;color:#ea580c;border:1px solid #fed7aa;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600">📊 Трекинг</button>
+          <button onclick="atAsstQuickAsk('Открой вкладку Предотвращение')" style="padding:6px 12px;background:#faf5ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600">🛡️ Предотвращение</button>
+        </div>
+      </div>
     </div>
-    <div style="font-size:10px;color:#9ca3af;margin-top:6px;text-align:center">
-      Ассистент может выполнять действия на сайте: переключать вкладки, изменять настройки, объяснять функционал
+    
+    <!-- Input area -->
+    <div style="flex-shrink:0;padding:12px 16px;border-top:1.5px solid var(--border,#e5e7eb);background:var(--bg2,#f9fafb)">
+      <div style="display:flex;gap:8px;align-items:flex-end">
+        <textarea id="atAsstInput"
+          placeholder="Спросите что-нибудь... (Enter — отправить)"
+          style="flex:1;resize:none;min-height:44px;max-height:120px;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px;font-family:inherit;background:var(--bg,#fff);color:var(--text,#111);outline:none;line-height:1.5"
+          rows="1"
+          onkeydown="atAsstKeydown(event)"
+          oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"></textarea>
+        <button id="atAsstSendBtn" onclick="atAsstSend()"
+          style="width:44px;height:44px;background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;border:none;border-radius:10px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        </button>
+      </div>
     </div>
   </div>
 </div>
