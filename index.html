@@ -10758,9 +10758,11 @@ window.addEventListener('AT_fb_ready', function() {
 // ══════════════════════════════════════════════════════════════════
 
 var _AT_ASST = {
-  // API ключи
-  deepseekKey: 'AQVN069ZFBSUwZ_mX7oGutycl5NWPRA_qTIwbENB',
-  yandexKeyId: 'ajeilrssghh10cci6rgo',
+  // Yandex AI Studio — DeepSeek v3
+  yandexApiKey: 'AQVNxgsDExCF0jSAKVkP0W4THe5ZJtP_sBcvoesh',
+  yandexProject: 'b1g0hrm6a1f5rsn2o7of',
+  yandexModel: 'gpt://b1g0hrm6a1f5rsn2o7of/deepseek-v32/latest',
+  yandexEndpoint: 'https://ai.api.cloud.yandex.net/v1/responses',
   
   // История диалога
   messages: [],
@@ -10768,8 +10770,8 @@ var _AT_ASST = {
   // Статус
   isLoading: false,
   
-  // Провайдер: 'deepseek' | 'yandex'
-  provider: 'deepseek',
+  // Провайдер: 'yandex' | 'groq' | 'gemini' | 'openrouter'
+  provider: 'yandex',
   
   // Системный промпт — полное описание сайта для AI
   systemPrompt: `Ты — ИИ-ассистент сайта ArtemenkTools (AT) — инструмента для работников склада Wildberries.
@@ -10881,10 +10883,11 @@ function atAsstShowApiKeyPrompt() {
   el.innerHTML = '<div style="padding:14px;background:' + (isDark?'#1e1e2e':'#eff6ff') + ';border-radius:12px;border:1.5px solid ' + (isDark?'#3b82f6':'#bfdbfe') + '">' +
     '<div style="font-size:13px;font-weight:700;color:#3b82f6;margin-bottom:8px">🔑 Нужен API ключ</div>' +
     '<div style="font-size:12px;color:' + (isDark?'#94a3b8':'#374151') + ';margin-bottom:10px;line-height:1.6">' +
-    'Введите ключ от одного из бесплатных сервисов:<br>' +
-    '• <a href="https://console.groq.com" target="_blank" style="color:#3b82f6">Groq</a> (gsk_...) — быстрый, бесплатно<br>' +
-    '• <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#3b82f6">Google AI Studio</a> (AIza...) — бесплатно<br>' +
-    '• <a href="https://openrouter.ai/keys" target="_blank" style="color:#3b82f6">OpenRouter</a> (sk-or-...) — бесплатные модели' +
+    'Встроенный DeepSeek v3 (Yandex AI) недоступен из браузера (CORS). Введите ключ от альтернативного сервиса:<br>' +
+    '• <a href="https://console.groq.com" target="_blank" style="color:#3b82f6">Groq</a> (gsk_...) — очень быстрый, бесплатно<br>' +
+    '• <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#3b82f6">Google AI Studio</a> (AIza...) — Gemini, бесплатно<br>' +
+    '• <a href="https://openrouter.ai/keys" target="_blank" style="color:#3b82f6">OpenRouter</a> (sk-or-...) — DeepSeek и др.<br>' +
+    '<small style="color:#9ca3af">Или введите "default" чтобы сбросить на Yandex AI</small>' +
     '</div>' +
     '<div style="display:flex;gap:6px">' +
     '<input id="atAsstKeyInput" placeholder="Вставьте API ключ..." style="flex:1;padding:8px 10px;border:1.5px solid #3b82f6;border-radius:8px;font-size:12px;background:' + (isDark?'#0f172a':'#fff') + ';color:' + (isDark?'#e2e8f0':'#111') + ';outline:none">' +
@@ -10910,11 +10913,21 @@ function atAsstSaveKey() {
   var inp = document.getElementById('atAsstKeyInput');
   if (!inp || !inp.value.trim()) return;
   var key = inp.value.trim();
+  
+  // Allow clearing key (type "default" to reset to Yandex)
+  if (key.toLowerCase() === 'default' || key.toLowerCase() === 'yandex') {
+    try { localStorage.removeItem('at_asst_api_key'); } catch(e) {}
+    document.querySelectorAll('.at-asst-key-prompt').forEach(function(el){ el.remove(); });
+    _atAsstAddMsg('assistant', '✅ Сброшено на встроенный DeepSeek v3 (Yandex AI).');
+    _atAsstUpdateStatus();
+    return;
+  }
+  
   try { localStorage.setItem('at_asst_api_key', key); } catch(e) {}
   
   // Detect provider from key format
   var providerName = 'Unknown';
-  if (key.startsWith('gsk_')) providerName = 'Groq';
+  if (key.startsWith('gsk_')) providerName = 'Groq (llama-3.3-70b)';
   else if (key.startsWith('sk-or-')) providerName = 'OpenRouter';
   else if (key.startsWith('AIza')) providerName = 'Google Gemini';
   
@@ -10953,7 +10966,7 @@ function _atAsstUpdateStatus() {
   if (!el) return;
   var key = '';
   try { key = localStorage.getItem('at_asst_api_key') || ''; } catch(e) {}
-  var provider = 'Нет ключа';
+  var provider = 'DeepSeek v3 (Yandex AI)';  // default
   if (key.startsWith('gsk_')) provider = 'Groq (llama-3.3-70b)';
   else if (key.startsWith('sk-or-')) provider = 'OpenRouter (DeepSeek)';
   else if (key.startsWith('AIza') || (key.length > 30 && !key.startsWith('AQVN'))) provider = 'Google Gemini';
@@ -11113,11 +11126,24 @@ async function atAsstSend() {
     _atAsstRemoveTyping();
     var errMsg = err.message || String(err);
     if (errMsg === 'NO_KEY' || errMsg.includes('401') || errMsg.includes('403')) {
-      // Нет API ключа — показываем подсказку
       _atAsstShowApiKeyPrompt();
+    } else if (errMsg === 'CORS_BLOCKED' || errMsg.includes('CORS') || errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError')) {
+      // Yandex CORS заблокирован — предложить альтернативу
+      _atAsstAddMsg('assistant', 
+        '⚠️ Yandex AI недоступен из браузера (CORS ограничение).
+
+' +
+        '**Решение:** Введите бесплатный ключ от одного из сервисов:
+' +
+        '• [**Groq**](https://console.groq.com) — очень быстрый, бесплатно, ключ `gsk_...`
+' +
+        '• [**Google Gemini**](https://aistudio.google.com/app/apikey) — бесплатно, ключ `AIza...`
+
+' +
+        'Нажмите кнопку **⚙️ API ключ** и вставьте ключ.', {error: true});
+      setTimeout(atAsstShowApiKeyPrompt, 800);
     } else {
-      _atAsstAddMsg('assistant', '❌ Ошибка: ' + errMsg +
-        '\n\n**Нужен API ключ.** Нажмите кнопку **⚙️ API ключ** вверху и введите ключ от [Groq](https://console.groq.com) (бесплатно) или [Google Gemini](https://aistudio.google.com/app/apikey) (бесплатно).', {error: true});
+      _atAsstAddMsg('assistant', '❌ Ошибка: ' + errMsg, {error: true});
     }
   }
   
@@ -11126,42 +11152,33 @@ async function atAsstSend() {
 }
 
 async function _atAsstCallAPI(userText) {
-  // Build messages with system prompt
-  var msgs = [{ role: 'system', content: _AT_ASST.systemPrompt }];
-  
-  // Add context: current state
+  // Build context string
   var stateCtx = _atAsstGetContext();
-  if (stateCtx) {
-    msgs.push({ role: 'system', content: 'ТЕКУЩЕЕ СОСТОЯНИЕ САЙТА:\n' + stateCtx });
-  }
+  var systemFull = _AT_ASST.systemPrompt + (stateCtx ? '\n\nТЕКУЩЕЕ СОСТОЯНИЕ САЙТА:\n' + stateCtx : '');
   
-  // Add conversation history (last 10 messages)
-  msgs = msgs.concat(_AT_ASST.messages.slice(-10));
+  // Chat history (last 10 messages)  
+  var hist = _AT_ASST.messages.slice(-10);
   
-  // Определяем API ключ пользователя (если ввёл)
+  // Проверяем кастомный ключ пользователя
   var userKey = '';
   try { userKey = localStorage.getItem('at_asst_api_key') || ''; } catch(e) {}
   
-  // Провайдеры в порядке приоритета (только CORS-friendly API)
-  var providers = [
-    { name: 'groq', key: userKey || 'gsk_default' },
-    { name: 'openrouter', key: userKey || '' },
-    { name: 'gemini', key: userKey || '' }
-  ];
-  
-  // Если у пользователя есть ключ — определить провайдер по формату
   if (userKey) {
+    // Кастомный ключ — определяем провайдер
     if (userKey.startsWith('gsk_')) {
+      var msgs = [{role:'system',content:systemFull}].concat(hist);
       return await _atAsstGroq(msgs, userKey);
     } else if (userKey.startsWith('sk-or-')) {
+      var msgs = [{role:'system',content:systemFull}].concat(hist);
       return await _atAsstOpenRouter(msgs, userKey);
-    } else if (userKey.length > 20 && !userKey.startsWith('AQVN')) {
+    } else if (userKey.startsWith('AIza') || (userKey.length > 30)) {
+      var msgs = [{role:'system',content:systemFull}].concat(hist);
       return await _atAsstGemini(msgs, userKey);
     }
   }
   
-  // Если нет ключа — используем встроенную модель через Claude artifact API
-  return await _atAsstClaudeArtifact(msgs);
+  // PRIMARY: Yandex AI Studio — DeepSeek v3 (встроенный ключ)
+  return await _atAsstYandexNew(systemFull, hist, userText);
 }
 
 function _atAsstGetContext() {
@@ -11192,6 +11209,78 @@ function _atAsstGetContext() {
 }
 
 // ── CORS-friendly API Providers ────────────────────────────────────
+
+async function _atAsstYandexNew(systemPrompt, history, lastUserText) {
+  // Yandex AI Studio — OpenAI Responses API
+  // Endpoint: https://ai.api.cloud.yandex.net/v1/responses
+  // Поддерживает CORS из браузера!
+  
+  // Конвертируем историю в строку для input
+  var inputText = '';
+  if (history.length > 0) {
+    // Форматируем историю диалога
+    history.forEach(function(m) {
+      if (m.role === 'user') inputText += 'Пользователь: ' + m.content + '\n';
+      else if (m.role === 'assistant') inputText += 'Ассистент: ' + m.content + '\n';
+    });
+  }
+  // Последнее сообщение пользователя
+  if (lastUserText && !inputText.endsWith('Пользователь: ' + lastUserText + '\n')) {
+    inputText += 'Пользователь: ' + lastUserText;
+  }
+  if (!inputText.trim()) inputText = lastUserText || 'Привет!';
+  
+  var response = await fetch(_AT_ASST.yandexEndpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Api-Key ' + _AT_ASST.yandexApiKey,
+      'OpenAI-Project': _AT_ASST.yandexProject
+    },
+    body: JSON.stringify({
+      model: _AT_ASST.yandexModel,
+      instructions: systemPrompt,
+      input: inputText,
+      temperature: 0.3,
+      max_output_tokens: 1500
+    })
+  });
+  
+  if (!response.ok) {
+    var errText = await response.text();
+    // CORS error or auth error
+    if (response.status === 0 || errText === '') {
+      throw new Error('CORS_BLOCKED');
+    }
+    throw new Error('Yandex AI ' + response.status + ': ' + errText.slice(0, 200));
+  }
+  
+  var data = await response.json();
+  
+  // Парсим ответ в формате OpenAI Responses API
+  // Формат: { output: [{ type: 'message', content: [{ type: 'output_text', text: '...' }] }] }
+  if (data.output && Array.isArray(data.output)) {
+    for (var i = 0; i < data.output.length; i++) {
+      var item = data.output[i];
+      if (item.type === 'message' && item.content) {
+        for (var j = 0; j < item.content.length; j++) {
+          if (item.content[j].type === 'output_text' || item.content[j].type === 'text') {
+            return item.content[j].text;
+          }
+        }
+      }
+    }
+  }
+  // Fallback форматы
+  if (data.choices && data.choices[0]) return data.choices[0].message.content;
+  if (data.result && data.result.alternatives && data.result.alternatives[0]) {
+    return data.result.alternatives[0].message.text;
+  }
+  if (data.text) return data.text;
+  
+  console.warn('Yandex AI: unexpected response format', data);
+  throw new Error('Yandex AI: неожиданный формат ответа. Проверьте консоль.');
+}
 
 async function _atAsstClaudeArtifact(messages) {
   // Используем Anthropic Claude API — встроенный в AT.html (как Claude artifact)
@@ -16965,7 +17054,7 @@ function syncFloatingConsole() {
         <div style="font-size:44px;margin-bottom:10px">🤖</div>
         <div style="font-size:15px;font-weight:800;color:var(--text,#374151);margin-bottom:6px">Ассистент ArtemenkTools</div>
         <div style="font-size:12px;max-width:380px;margin:0 auto;line-height:1.7;color:#6b7280">
-          Я знаю всё о сайте. Могу объяснить как работают вкладки, помочь с настройками, изменить тайминги, переключить вкладку.
+          Я работаю на DeepSeek v3 через Yandex AI. Знаю всё о сайте ArtemenkTools. Объясню вкладки, помогу с настройками, изменю тайминги.
         </div>
         <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center">
           <button onclick="atAsstQuickAsk('Как работает вкладка Декларация?')" style="padding:6px 12px;background:#eff6ff;color:#3b82f6;border:1px solid #bfdbfe;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600">🔍 Декларация</button>
