@@ -1658,6 +1658,11 @@ window.AT_importData = async function(file){
 <div class="setItem">
 <button onclick="openDevConsole()" style="width:100%;padding:12px;background:#333;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;margin-bottom:10px">🔧 Консоль разработчика</button>
 <button onclick="nav('pro');closeSet()" style="width:100%;padding:12px;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600">⭐ ArtemenkPRO</button>
+<button onclick="atAssistantOpen();closeSet()" style="width:100%;margin-top:8px;padding:12px;background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px">🤖 Ассистент</button>
+<button onclick="atAssistantOpen();closeSet()" style="width:100%;margin-top:8px;padding:12px;background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+  🤖 Ассистент
+</button>
 </div>
 
 <div class="setItem" style="border-top:1px solid #eee;padding-top:15px;margin-top:10px;text-align:center">
@@ -1733,6 +1738,11 @@ window.AT_importData = async function(file){
     style="display:flex;align-items:center;gap:6px;padding:11px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all 0.2s;white-space:nowrap">
     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
     Пользователи
+  </button>
+  <button onclick="devSwitchTab('assistant')" id="dcTab_assistant"
+    style="display:flex;align-items:center;gap:6px;padding:11px 16px;border:none;background:none;cursor:pointer;font-size:13px;font-weight:600;color:#888;border-bottom:3px solid transparent;margin-bottom:-2px;transition:all 0.2s;white-space:nowrap">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+    🤖 Ассистент
   </button>
 </div>
 
@@ -3357,7 +3367,7 @@ function dcApplyAccessMode(restricted) {
 function devSwitchTab(tab) {
   // В ограниченном режиме разрешены только logs и timings
   if (_devConsoleRestricted && tab !== 'logs' && tab !== 'timings') return;
-  ['logs','terminal','timings','export','memory','thanks','announce','users'].forEach(function(t) {
+  ['logs','terminal','timings','export','memory','thanks','announce','users','assistant'].forEach(function(t) {
     var panel = document.getElementById('dcPanel_'+t);
     var btn   = document.getElementById('dcTab_'+t);
     if (!panel || !btn) return;
@@ -3374,6 +3384,7 @@ function devSwitchTab(tab) {
   if (tab === 'announce') dcRenderAnnounce();
   if (tab === 'users') { usrRefresh(); _presenceWrite(); }
   if (tab === 'thanks') { setTimeout(dcThanksRefresh, 50); }
+  if (tab === 'assistant') { setTimeout(atAssistantInit, 50); }
   // Sync floating console active tab
   var sel = document.getElementById('floatTabSelect');
   if (sel) sel.value = tab;
@@ -9967,7 +9978,10 @@ function usrRender() {
     var extVer = u.extVersion || '';
 
     // Совпадение по IP (одинаковый ПК?)
+    // sameIp: same IP = potentially same network (не обязательно тот же ПК)
     var sameIp = ipStr && _presencePublicIp && ipStr === _presencePublicIp && !isMe;
+    // samePc: одинаковый fingerprint = ТОЧНО тот же физический ПК (другой браузер)
+    var samePc = !isMe && u.pcId && _presencePcId && u.pcId === _presencePcId;
     
     var _eid = String(u.pcId).replace(/"/g,'');
     var _enm = String(u.profileName||'').replace(/"/g,'').replace(/'/g,'');
@@ -9983,7 +9997,8 @@ function usrRender() {
     html += '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">';
     html += '<span style="font-size:15px;font-weight:800;color:'+textColor+'">'+_pfEsc(u.profileName||'Неизвестно')+'</span>';
     if (isMe) html += '<span style="font-size:10px;background:#667eea;color:#fff;border-radius:4px;padding:2px 6px;font-weight:700">ВЫ</span>';
-    if (sameIp) html += '<span style="font-size:10px;background:#f59e0b;color:#fff;border-radius:4px;padding:2px 6px;font-weight:700">ОДИН ПК</span>';
+    if (samePc) html += '<span style="font-size:10px;background:#6366f1;color:#fff;border-radius:4px;padding:2px 6px;font-weight:700" title="Тот же физический ПК, другой браузер">ЭТОТ ПК</span>';
+    else if (sameIp) html += '<span style="font-size:10px;background:#f59e0b;color:#fff;border-radius:4px;padding:2px 6px;font-weight:700" title="Одна локальная сеть">СЕТЬ</span>';
     html += '</div>';
 
     // Status + online time
@@ -9993,12 +10008,14 @@ function usrRender() {
     if (onlineTimeStr) html += '<span style="font-size:11px;color:'+mutedColor+'">• в сети '+onlineTimeStr+'</span>';
     html += '</div>';
 
-    // Meta row: browser, IP, versions
-    html += '<div style="display:flex;gap:10px;margin-top:5px;flex-wrap:wrap">';
-    if (browserStr) html += '<span style="font-size:11px;color:'+mutedColor+';background:'+metaBg+';padding:2px 6px;border-radius:4px">🌐 '+_pfEsc(browserStr)+'</span>';
-    if (ipStr) html += '<span style="font-size:11px;color:'+mutedColor+';background:'+metaBg+';padding:2px 6px;border-radius:4px">🖧 '+_pfEsc(ipStr)+'</span>';
-    if (appVer) html += '<span style="font-size:11px;color:'+mutedColor+';background:'+metaBg+';padding:2px 6px;border-radius:4px">📦 v'+_pfEsc(appVer)+'</span>';
-    if (extVer) html += '<span style="font-size:11px;color:'+mutedColor+';background:'+metaBg+';padding:2px 6px;border-radius:4px">🔌 ext '+_pfEsc(extVer)+'</span>';
+    // Meta row: browser, IP, pcId, versions
+    var pcIdShort = _eid ? _eid.replace(/^fp_/, '') : '';
+    html += '<div style="display:flex;gap:6px;margin-top:5px;flex-wrap:wrap;align-items:center">';
+    if (browserStr) html += '<span style="font-size:11px;color:'+mutedColor+';background:'+metaBg+';padding:2px 6px;border-radius:4px" title="Браузер">🌐 '+_pfEsc(browserStr)+'</span>';
+    if (ipStr) html += '<span style="font-size:11px;color:'+mutedColor+';background:'+metaBg+';padding:2px 6px;border-radius:4px" title="IP адрес">🖧 '+_pfEsc(ipStr)+'</span>';
+    if (pcIdShort) html += '<span style="font-size:11px;color:'+(isMe?'#667eea':mutedColor)+';background:'+(isMe?'#eef2ff':metaBg)+';padding:2px 6px;border-radius:4px;font-family:monospace" title="Идентификатор ПК (fingerprint): '+_pfEsc(_eid)+'">💻 '+_pfEsc(pcIdShort)+'</span>';
+    if (appVer) html += '<span style="font-size:11px;color:'+mutedColor+';background:'+metaBg+';padding:2px 6px;border-radius:4px" title="Версия сайта">📦 v'+_pfEsc(appVer)+'</span>';
+    if (extVer) html += '<span style="font-size:11px;color:'+mutedColor+';background:'+metaBg+';padding:2px 6px;border-radius:4px" title="Версия расширения">🔌 ext '+_pfEsc(extVer)+'</span>';
     html += '</div>';
 
     html += '</div>'; // flex
@@ -10110,191 +10127,319 @@ function usrSendTimings(pcId) {
   alert('⏱️ Тайминги отправлены на ПК ' + pcId);
 }
 
-// ── Remote Control ──────────────────────────────────────────────
+
+// ══════════════════════════════════════════════════════════════════
+//  REMOTE CONTROL — полное управление экраном пользователя
+//  Publisher (remote PC) публикует снапшот DOM в Firebase
+//  Viewer (admin) получает и рендерит в iframe + отправляет команды
+// ══════════════════════════════════════════════════════════════════
+
+// --- PUBLISHER: публикация состояния экрана ---
+var _remotePublishInterval = null;
+var _remotePublishPcId = null;
+
+function _remoteStartPublishing() {
+  if (_remotePublishInterval) return;
+  // Публикуем сразу + каждые 2 секунды
+  _remoteDoPublish();
+  _remotePublishInterval = setInterval(_remoteDoPublish, 2000);
+  window.addEventListener('click', _remoteDoPublish);
+  window.addEventListener('keyup', _remoteDoPublish);
+}
+
+function _remoteStopPublishing() {
+  if (_remotePublishInterval) {
+    clearInterval(_remotePublishInterval);
+    _remotePublishInterval = null;
+  }
+  window.removeEventListener('click', _remoteDoPublish);
+  window.removeEventListener('keyup', _remoteDoPublish);
+  if (window._fbDb && window.SHARED_PATH && _presencePcId) {
+    try { window._fbDb.ref(window.SHARED_PATH + '/remote_screen/' + _presencePcId).remove(); } catch(e) {}
+  }
+}
+
+function _remoteDoPublish() {
+  if (!window._fbDb || !window.SHARED_PATH || !_presencePcId) return;
+  try {
+    // Серилализуем видимую часть интерфейса
+    var mainEl = document.getElementById('mainContent') || document.querySelector('.main-content') || document.body;
+    
+    // Клонируем и очищаем скрипты из снапшота
+    var clone = mainEl.cloneNode(true);
+    clone.querySelectorAll('script').forEach(function(s) { s.remove(); });
+    // Убираем input пароли
+    clone.querySelectorAll('input[type="password"]').forEach(function(i) { i.value = ''; });
+    
+    var html = clone.outerHTML;
+    
+    // Простое сжатие: LZString если есть, иначе обрезаем
+    var compressed = html;
+    if (typeof LZString !== 'undefined') {
+      compressed = LZString.compressToUTF16(html);
+    } else {
+      // Обрезаем до 100KB чтобы не превышать лимит Firebase
+      if (compressed.length > 100000) compressed = compressed.slice(0, 100000) + '...TRUNCATED';
+    }
+    
+    window._fbDb.ref(window.SHARED_PATH + '/remote_screen/' + _presencePcId).set({
+      html: compressed,
+      ts: Date.now(),
+      pcId: _presencePcId,
+      compressed: typeof LZString !== 'undefined'
+    });
+  } catch(e) {}
+}
+
+// Слушаем команды от админа
+var _remoteCommandListenerActive = false;
+function _remoteStartCommandListener() {
+  if (_remoteCommandListenerActive || !window._fbDb || !window.SHARED_PATH || !_presencePcId) return;
+  _remoteCommandListenerActive = true;
+  
+  var cmdRef = window._fbDb.ref(window.SHARED_PATH + '/remote_cmd/' + _presencePcId);
+  cmdRef.on('value', function(snap) {
+    var cmd = snap.val();
+    if (!cmd || !cmd.cmd || !cmd.ts) return;
+    
+    // Не выполнять старые команды (старше 10 секунд)
+    if (Date.now() - cmd.ts > 10000) return;
+    
+    console.log('📡 Remote command received:', cmd.cmd, cmd);
+    
+    try {
+      if (cmd.cmd === 'switch_tab' && cmd.tab) {
+        if (typeof floatSwitchTab === 'function') floatSwitchTab(cmd.tab);
+        _presenceSetPage(cmd.tab);
+      } else if (cmd.cmd === 'js' && cmd.code) {
+        // Выполняем произвольный JS (только от доверенного админа)
+        // eslint-disable-next-line no-eval
+        eval(cmd.code);
+      } else if (cmd.cmd === 'reload') {
+        setTimeout(function() { location.reload(); }, 500);
+      } else if (cmd.cmd === 'click_element' && cmd.selector) {
+        var el = document.querySelector(cmd.selector);
+        if (el) el.click();
+      } else if (cmd.cmd === 'set_value' && cmd.selector && cmd.value !== undefined) {
+        var el2 = document.querySelector(cmd.selector);
+        if (el2) { el2.value = cmd.value; el2.dispatchEvent(new Event('input', {bubbles:true})); }
+      } else if (cmd.cmd === 'scroll_to' && cmd.selector) {
+        var el3 = document.querySelector(cmd.selector);
+        if (el3) el3.scrollIntoView({behavior:'smooth', block:'center'});
+      }
+    } catch(e) {
+      console.warn('Remote command error:', e);
+    }
+    
+    // После выполнения — немедленно публикуем обновлённый снапшот
+    setTimeout(_remoteDoPublish, 300);
+    
+    // Отвечаем что команда выполнена
+    try {
+      window._fbDb.ref(window.SHARED_PATH + '/remote_cmd/' + _presencePcId + '/executed').set(Date.now());
+    } catch(e) {}
+  });
+}
+
+// --- VIEWER: панель просмотра и управления ---
+var _remoteWatchUnsubscribe = null;
+var _remoteViewerPcId = null;
+var _remoteViewerScreenRef = null;
+var _remoteViewerCmdRef = null;
 
 function usrOpenRemote(pcId, profileName) {
   var userData = _usrData[pcId];
-  if (!userData) { alert('ПК ' + pcId + ' не найден в базе'); return; }
-  
-  // Create fullscreen overlay modal
-  var existing = document.getElementById('usrRemoteModal');
-  if (existing) existing.remove();
-  
-  var modal = document.createElement('div');
-  modal.id = 'usrRemoteModal';
-  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:99998;background:rgba(0,0,0,0.75);display:flex;flex-direction:column;align-items:stretch';
-  
-  var isDark = document.body.classList.contains('dark');
-  var bgPanel = isDark ? '#1a1a2e' : '#f8f9fa';
-  var bgMain  = isDark ? '#12121f' : '#fff';
-  var txtCol  = isDark ? '#e0e0e0' : '#1a1a2e';
-  
-  modal.innerHTML = `
-    <div style="display:flex;flex-direction:column;height:100%;max-height:100vh">
-      <!-- Header bar -->
-      <div style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:10px 18px;display:flex;align-items:center;gap:12px;flex-shrink:0">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-        <span style="font-size:14px;font-weight:800">Удалённое управление</span>
-        <span style="font-size:12px;opacity:.8">—</span>
-        <span style="font-size:13px;font-weight:600" id="remoteProfileName">${_pfEsc(profileName||pcId)}</span>
-        <span id="remoteLiveStatus" style="font-size:11px;background:rgba(255,255,255,.2);border-radius:12px;padding:2px 10px;margin-left:4px">🔴 подключение...</span>
-        <div style="flex:1"></div>
-        <!-- Quick tab buttons -->
-        <div style="display:flex;gap:4px">
-          ${['search','filling','prev','boxes','tracking','qr','trbx'].map(function(t){
-            var lbl = {search:'Декларация',filling:'Наполнение',prev:'Предотвращение',boxes:'Коробки',tracking:'Треккинг',qr:'QR',trbx:'TRBX'}[t];
-            return '<button onclick="usrRemoteSwitchTab(\'' + t + '\')" style="padding:4px 8px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:5px;cursor:pointer;font-size:11px;font-weight:600">' + lbl + '</button>';
-          }).join('')}
-        </div>
-        <button onclick="document.getElementById(\'usrRemoteModal\').remove();usrStopRemoteWatch();" 
-          style="margin-left:12px;background:rgba(255,255,255,.2);border:none;border-radius:6px;color:#fff;cursor:pointer;padding:6px 12px;font-size:13px;font-weight:700">✕ Закрыть</button>
-      </div>
-      
-      <!-- Main area: left = state panel, right = controls -->
-      <div style="display:flex;flex:1;overflow:hidden;gap:0">
-        
-        <!-- Left: live state mirror -->
-        <div style="flex:1;overflow-y:auto;background:${bgMain};padding:16px">
-          <!-- Page info banner -->
-          <div id="remotePageBanner" style="background:${bgPanel};border-radius:10px;padding:12px 16px;margin-bottom:14px;font-size:13px;color:${txtCol}">
-            📍 Загружаем данные...
-          </div>
-          <!-- Live data mirror -->
-          <div id="remoteLiveMirror" style="font-size:13px;color:${txtCol}">
-            <div style="text-align:center;color:#9ca3af;padding:40px">⏳ Ожидаем данные с ПК...</div>
-          </div>
-        </div>
-        
-        <!-- Right: control panel -->
-        <div style="width:280px;flex-shrink:0;background:${bgPanel};border-left:1.5px solid ${isDark?'#2d2d3d':'#e5e7eb'};padding:16px;overflow-y:auto;display:flex;flex-direction:column;gap:10px">
-          <div style="font-size:12px;font-weight:800;color:#667eea;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">🎮 Управление</div>
-          
-          <button onclick="usrRemoteCmd('reload')" style="width:100%;padding:9px;background:#fff;border:1.5px solid #e5e7eb;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:#374151;text-align:left">🔁 Перезагрузить страницу</button>
-          
-          <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;margin-top:6px">Синхронизация</div>
-          <button onclick="usrRemoteCmd('synctimings')" style="width:100%;padding:9px;background:#fffbeb;border:1.5px solid #f59e0b;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:#d97706;text-align:left">⏱️ Отправить тайминги</button>
-          <button onclick="usrRemoteCmd('force_sync')" style="width:100%;padding:9px;background:#eff6ff;border:1.5px solid #3b82f6;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;color:#1d4ed8;text-align:left">🔄 Принудительная синхронизация</button>
-          
-          <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;margin-top:6px">Сообщение</div>
-          <div style="display:flex;gap:6px">
-            <input id="remoteMsg" placeholder="Введите сообщение..." style="flex:1;padding:8px;border:1.5px solid #e5e7eb;border-radius:6px;font-size:12px">
-            <button onclick="usrRemoteSendMsg()" style="padding:8px 12px;background:#6366f1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700">→</button>
-          </div>
-          
-          <div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.4px;margin-top:6px">Последние события</div>
-          <div id="remoteEventLog" style="font-size:11px;color:#6b7280;background:${isDark?'#1e1e2e':'#f9fafb'};border-radius:6px;padding:8px;min-height:80px;max-height:200px;overflow-y:auto">
-            <div style="color:#9ca3af">Ожидаем события...</div>
-          </div>
-          
-          <div style="margin-top:auto;padding-top:10px;border-top:1px solid ${isDark?'#2d2d3d':'#e5e7eb'}">
-            <div style="font-size:10px;color:#9ca3af;text-align:center">ПК ID: ${_pfEsc(pcId)}</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  `;
-  
-  document.body.appendChild(modal);
-  
-  // Start watching this PC
-  usrStartRemoteWatch(pcId);
-  
-  // Store current target
-  window._remoteControlPcId = pcId;
-  window._remoteControlProfileName = profileName;
-}
-
-var _remoteWatchUnsubscribe = null;
-
-function usrStartRemoteWatch(pcId) {
-  // Unsubscribe previous
-  usrStopRemoteWatch();
-  
-  if (!window._fbDb || !window.SHARED_PATH) {
-    var banner = document.getElementById('remotePageBanner');
-    if (banner) banner.innerHTML = '❌ Firebase не подключён — удалённый доступ недоступен';
+  if (!userData) {
+    // Попробуем запросить из Firebase
+    alert('ПК ' + pcId + ' — данные не найдены. Обновите список пользователей.');
     return;
   }
   
-  var ref = window._fbDb.ref(window.SHARED_PATH + '/presence/' + pcId);
-  _remoteWatchUnsubscribe = ref;
+  var existing = document.getElementById('usrRemoteModal');
+  if (existing) existing.remove();
   
-  ref.on('value', function(snap) {
-    var u = snap.val();
-    if (!u) return;
+  _remoteViewerPcId = pcId;
+  
+  var isDark = document.body.classList.contains('dark');
+  var headerBg = 'linear-gradient(135deg,#667eea,#764ba2)';
+  
+  var modal = document.createElement('div');
+  modal.id = 'usrRemoteModal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:99998;background:rgba(0,0,0,0.85);display:flex;flex-direction:column';
+  
+  modal.innerHTML = `
+<div style="display:flex;flex-direction:column;height:100vh;max-height:100vh">
+  <!-- Header -->
+  <div style="background:${headerBg};color:#fff;padding:8px 16px;display:flex;align-items:center;gap:10px;flex-shrink:0;min-height:48px">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+    <b style="font-size:13px">Удалённое управление</b>
+    <span style="font-size:12px;opacity:.7">—</span>
+    <span style="font-size:13px" id="rcProfileName">${_pfEsc(profileName||pcId)}</span>
+    <span id="rcStatus" style="font-size:11px;background:rgba(255,255,255,.18);border-radius:10px;padding:2px 10px">🔴 подключение...</span>
+    <span id="rcFps" style="font-size:10px;opacity:.6"></span>
+    <div style="flex:1"></div>
+    <!-- Быстрые вкладки -->
+    <div id="rcTabBtns" style="display:flex;gap:3px">
+      ${['search','filling','prev','boxes','tracking','qr','trbx'].map(t=>`
+        <button onclick="usrRemoteSendCmd('switch_tab',{tab:'${t}'})" 
+          style="padding:3px 7px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:4px;cursor:pointer;font-size:10px;font-weight:600"
+          title="${{search:'Декларация',filling:'Наполнение',prev:'Предотвращение',boxes:'Коробки',tracking:'Треккинг',qr:'QR',trbx:'TRBX'}[t]}">
+          ${{search:'🔍',filling:'📦',prev:'🛡️',boxes:'📬',tracking:'📊',qr:'🔲',trbx:'📤'}[t]}
+        </button>`).join('')}
+    </div>
+    <button onclick="usrRemoteSendCmd('reload',{})" title="Перезагрузить страницу"
+      style="padding:4px 8px;background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:4px;cursor:pointer;font-size:12px">🔁</button>
+    <button onclick="document.getElementById('usrRemoteModal').remove();usrStopRemoteWatch();"
+      style="padding:4px 10px;background:rgba(255,255,255,.2);color:#fff;border:1px solid rgba(255,255,255,.4);border-radius:6px;cursor:pointer;font-size:13px;font-weight:700;margin-left:6px">✕</button>
+  </div>
+  
+  <!-- Toolbar: JS консоль -->
+  <div style="background:rgba(0,0,0,.4);padding:4px 16px;display:flex;gap:6px;align-items:center;flex-shrink:0">
+    <span style="font-size:11px;color:#9ca3af">JS команда:</span>
+    <input id="rcJsInput" placeholder="floatSwitchTab('search')" 
+      style="flex:1;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:4px;color:#fff;padding:3px 8px;font-size:11px;font-family:monospace"
+      onkeydown="if(event.key==='Enter'){usrRemoteRunJs();event.preventDefault()}">
+    <button onclick="usrRemoteRunJs()" style="padding:3px 10px;background:#6366f1;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:700">▶ Run</button>
+    <span style="font-size:10px;color:#6b7280">|</span>
+    <span style="font-size:11px;color:#9ca3af">Кликни на элемент в экране → отправит команду click</span>
+    <label style="display:flex;align-items:center;gap:4px;font-size:11px;color:#9ca3af;cursor:pointer">
+      <input type="checkbox" id="rcClickMode" onchange="rcToggleClickMode(this.checked)"> режим кликов
+    </label>
+  </div>
+  
+  <!-- Main area: iframe screen -->
+  <div style="flex:1;position:relative;overflow:hidden;background:#1a1a2e">
+    <!-- Loading overlay -->
+    <div id="rcLoadOverlay" style="position:absolute;inset:0;background:#1a1a2e;display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:10;gap:12px">
+      <div style="width:40px;height:40px;border:3px solid rgba(102,126,234,.3);border-top-color:#667eea;border-radius:50%;animation:rcSpin 1s linear infinite"></div>
+      <div id="rcLoadMsg" style="color:#9ca3af;font-size:13px">Ожидаем снапшот экрана от ПК...</div>
+      <div style="color:#6b7280;font-size:11px">Убедитесь что пользователь онлайн и AT.html открыт</div>
+    </div>
     
-    var statusEl = document.getElementById('remoteLiveStatus');
-    var bannerEl = document.getElementById('remotePageBanner');
-    var mirrorEl = document.getElementById('remoteLiveMirror');
-    var logEl    = document.getElementById('remoteEventLog');
+    <!-- Screen iframe -->
+    <iframe id="rcScreenFrame" 
+      style="width:100%;height:100%;border:none;display:none;background:#fff"
+      sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+      title="Remote Screen">
+    </iframe>
     
-    if (!statusEl) return; // modal closed
+    <!-- Click overlay (захватываем клики для отправки команд) -->
+    <div id="rcClickOverlay" style="position:absolute;inset:0;z-index:5;display:none;cursor:crosshair"
+      onclick="rcHandleOverlayClick(event)"></div>
     
-    var age = Date.now() - (u.ts || 0);
-    var isOnline = u.online && age < 60000;
-    
-    statusEl.textContent = isOnline ? '🟢 онлайн' : '⚫ офлайн';
-    statusEl.style.background = isOnline ? 'rgba(34,197,94,.25)' : 'rgba(107,114,128,.25)';
-    
-    // Page banner
-    var pageName = (typeof _PAGE_NAMES !== 'undefined' && _PAGE_NAMES[u.page]) || ('📄 ' + (u.page||'?'));
-    var actionTxt = (u.action && u.action !== 'Ожидание') ? ' ⚡ ' + _pfEsc(u.action) : '';
-    var timeTxt = u.ts ? new Date(u.ts).toLocaleTimeString('ru-RU') : '';
-    if (bannerEl) {
-      bannerEl.innerHTML = '<b>📍 ' + pageName + '</b>' + actionTxt +
-        (timeTxt ? ' <span style="color:#9ca3af;font-size:11px">• ' + timeTxt + '</span>' : '') +
-        '<br><span style="font-size:11px;color:#9ca3af">👤 ' + _pfEsc(u.profileName||'?') +
-        ' &nbsp;|&nbsp; 🌐 ' + _pfEsc(u.browser||'?') +
-        (u.publicIp ? ' &nbsp;|&nbsp; 🖧 ' + _pfEsc(u.publicIp) : '') + '</span>';
-    }
-    
-    // Mirror current page data
-    if (mirrorEl) {
-      var html = '';
-      
-      // Show current tab summary
-      var tabIcon = {search:'🔍',filling:'📦',prev:'🛡️',boxes:'📬',tracking:'📊',qr:'🔲',trbx:'📤'}[u.page] || '📄';
-      html += '<div style="background:linear-gradient(135deg,#f0f4ff,#e8f4fd);border:1.5px solid #c7d2fe;border-radius:10px;padding:12px 16px;margin-bottom:12px">';
-      html += '<div style="font-size:13px;font-weight:700;color:#4338ca">' + tabIcon + ' Активная вкладка: <b>' + pageName + '</b></div>';
-      if (u.action && u.action !== 'Ожидание') {
-        html += '<div style="font-size:12px;color:#6366f1;margin-top:4px">⚡ ' + _pfEsc(u.action) + '</div>';
-      }
-      html += '</div>';
-      
-      // Remote state data (if published)
-      if (u.remoteState) {
-        try {
-          var state = typeof u.remoteState === 'string' ? JSON.parse(u.remoteState) : u.remoteState;
-          if (state.rowCount !== undefined) {
-            html += '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">';
-            html += '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:8px 12px;font-size:12px"><b>' + state.rowCount + '</b><br><span style="color:#6b7280">строк</span></div>';
-            if (state.checkedCount !== undefined) html += '<div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:8px;padding:8px 12px;font-size:12px"><b>' + state.checkedCount + '</b><br><span style="color:#6b7280">проверено</span></div>';
-            if (state.failedCount !== undefined) html += '<div style="background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;padding:8px 12px;font-size:12px"><b>' + state.failedCount + '</b><br><span style="color:#6b7280">ошибок</span></div>';
-            html += '</div>';
-          }
-          if (state.lastItems && state.lastItems.length) {
-            html += '<div style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;margin-bottom:6px">Последние элементы</div>';
-            state.lastItems.forEach(function(item) {
-              html += '<div style="padding:6px 10px;background:#f9fafb;border-radius:6px;border:1px solid #f0f0f0;font-size:12px;margin-bottom:4px;font-family:monospace">' + _pfEsc(item) + '</div>';
-            });
-          }
-        } catch(e2) {}
-      } else {
-        html += '<div style="text-align:center;color:#9ca3af;padding:20px;font-size:12px">ℹ️ Данные страницы не опубликованы этим ПК</div>';
-      }
-      
-      mirrorEl.innerHTML = html;
-    }
-    
-    // Log event
-    if (logEl && u.action && u.action !== 'Ожидание') {
-      var time = new Date().toLocaleTimeString('ru-RU');
-      var logLine = '<div style="padding:2px 0;border-bottom:1px solid #f0f0f0">' +
-        '<span style="color:#9ca3af">' + time + '</span> ' + _pfEsc(u.action) + '</div>';
-      logEl.insertAdjacentHTML('afterbegin', logLine);
-      if (logEl.children.length > 20) logEl.removeChild(logEl.lastChild);
-    }
+    <!-- Timestamp badge -->
+    <div id="rcTimestamp" style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.5);color:#9ca3af;font-size:10px;padding:3px 8px;border-radius:4px;z-index:6;display:none"></div>
+  </div>
+</div>
+<style>
+@keyframes rcSpin { to { transform: rotate(360deg); } }
+</style>`;
+  
+  document.body.appendChild(modal);
+  usrStartRemoteWatch(pcId);
+}
+
+var _rcScreenTs = 0;
+
+function usrStartRemoteWatch(pcId) {
+  usrStopRemoteWatch();
+  _remoteViewerPcId = pcId;
+  
+  if (!window._fbDb || !window.SHARED_PATH) {
+    var msg = document.getElementById('rcLoadMsg');
+    if (msg) msg.textContent = '❌ Firebase не подключён';
+    return;
+  }
+  
+  // Сначала уведомим удалённый ПК что мы подключились (он начнёт публиковать)
+  window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').set({
+    cmd: 'start_remote_publish',
+    target: pcId,
+    viewerPcId: _presencePcId,
+    ts: Date.now()
   });
+  
+  // Подписываемся на снапшот экрана
+  _remoteViewerScreenRef = window._fbDb.ref(window.SHARED_PATH + '/remote_screen/' + pcId);
+  _remoteWatchUnsubscribe = _remoteViewerScreenRef;
+  
+  _remoteViewerScreenRef.on('value', function(snap) {
+    var data = snap.val();
+    if (!data || !data.html) return;
+    
+    _rcUpdateScreen(data);
+  });
+}
+
+function _rcUpdateScreen(data) {
+  var frame = document.getElementById('rcScreenFrame');
+  var overlay = document.getElementById('rcLoadOverlay');
+  var tsEl = document.getElementById('rcTimestamp');
+  var statusEl = document.getElementById('rcStatus');
+  var fpsEl = document.getElementById('rcFps');
+  
+  if (!frame) return;
+  
+  var html = data.html;
+  
+  // Decompress if needed
+  if (data.compressed && typeof LZString !== 'undefined') {
+    try { html = LZString.decompressFromUTF16(html); } catch(e) {}
+  }
+  
+  if (!html) return;
+  
+  // Calculate FPS
+  var now = Date.now();
+  if (_rcScreenTs > 0) {
+    var dt = now - _rcScreenTs;
+    if (fpsEl) fpsEl.textContent = Math.round(1000/dt) + ' fps';
+  }
+  _rcScreenTs = now;
+  
+  // Build complete HTML document for iframe
+  var doc = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  * { pointer-events: none !important; user-select: none !important; }
+  body { margin: 0; padding: 0; overflow: hidden; background: #f8f9fa; }
+  [data-rc-clickable] { pointer-events: auto !important; cursor: pointer !important; }
+  /* Scale to fit */
+  body { transform-origin: top left; }
+</style>
+</head>
+<body>
+${html}
+</body>
+</html>`;
+  
+  // Update iframe via blob URL
+  try {
+    var blob = new Blob([doc], { type: 'text/html' });
+    var url = URL.createObjectURL(blob);
+    var oldSrc = frame.getAttribute('data-blob-url');
+    frame.src = url;
+    if (oldSrc) setTimeout(function(){ URL.revokeObjectURL(oldSrc); }, 2000);
+    frame.setAttribute('data-blob-url', url);
+  } catch(e) {
+    // Fallback: srcdoc
+    frame.srcdoc = doc;
+  }
+  
+  // Show frame, hide overlay
+  frame.style.display = 'block';
+  if (overlay) overlay.style.display = 'none';
+  if (tsEl) {
+    tsEl.style.display = 'block';
+    tsEl.textContent = '🟢 ' + new Date(data.ts).toLocaleTimeString('ru-RU') + ' (' + Math.round((Date.now()-data.ts)/1000) + 's назад)';
+  }
+  if (statusEl) {
+    statusEl.textContent = '🟢 активен';
+    statusEl.style.background = 'rgba(34,197,94,.25)';
+  }
 }
 
 function usrStopRemoteWatch() {
@@ -10302,38 +10447,76 @@ function usrStopRemoteWatch() {
     try { _remoteWatchUnsubscribe.off('value'); } catch(e) {}
     _remoteWatchUnsubscribe = null;
   }
+  // Tell remote PC to stop publishing
+  if (_remoteViewerPcId && window._fbDb && window.SHARED_PATH) {
+    window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').set({
+      cmd: 'stop_remote_publish',
+      target: _remoteViewerPcId,
+      ts: Date.now()
+    });
+  }
+  _remoteViewerPcId = null;
+  _remoteViewerScreenRef = null;
+}
+
+function usrRemoteSendCmd(cmd, params) {
+  var pcId = _remoteViewerPcId;
+  if (!pcId || !window._fbDb || !window.SHARED_PATH) return;
+  
+  var cmdObj = Object.assign({ cmd: cmd, ts: Date.now(), by: _presencePcId }, params);
+  window._fbDb.ref(window.SHARED_PATH + '/remote_cmd/' + pcId).set(cmdObj);
+}
+
+function usrRemoteRunJs() {
+  var inp = document.getElementById('rcJsInput');
+  if (!inp || !inp.value.trim()) return;
+  usrRemoteSendCmd('js', { code: inp.value.trim() });
+  inp.value = '';
+}
+
+function rcToggleClickMode(on) {
+  var overlay = document.getElementById('rcClickOverlay');
+  if (overlay) overlay.style.display = on ? 'block' : 'none';
+}
+
+function rcHandleOverlayClick(e) {
+  var frame = document.getElementById('rcScreenFrame');
+  if (!frame) return;
+  
+  var rect = frame.getBoundingClientRect();
+  var x = e.clientX - rect.left;
+  var y = e.clientY - rect.top;
+  
+  // Try to find element at these coordinates in the iframe
+  try {
+    var iDoc = frame.contentDocument || frame.contentWindow.document;
+    var el = iDoc.elementFromPoint(x, y);
+    if (el) {
+      // Build CSS selector for this element
+      var sel = '';
+      if (el.id) {
+        sel = '#' + el.id;
+      } else if (el.className) {
+        sel = el.tagName.toLowerCase() + '.' + el.className.trim().split(/\s+/).join('.');
+      } else {
+        sel = el.tagName.toLowerCase();
+      }
+      
+      usrRemoteSendCmd('click_element', { selector: sel });
+      
+      // Visual feedback
+      var flash = document.createElement('div');
+      flash.style.cssText = 'position:fixed;left:'+(e.clientX-16)+'px;top:'+(e.clientY-16)+'px;width:32px;height:32px;background:rgba(99,102,241,.4);border:2px solid #6366f1;border-radius:50%;pointer-events:none;z-index:999999;animation:rcSpin .5s ease-out forwards';
+      document.body.appendChild(flash);
+      setTimeout(function(){ flash.remove(); }, 600);
+    }
+  } catch(e2) {}
 }
 
 function usrRemoteSwitchTab(tab) {
-  var pcId = window._remoteControlPcId;
-  if (!pcId) return;
-  usrSwitchTab(pcId, tab);
+  usrRemoteSendCmd('switch_tab', { tab: tab });
 }
 
-function usrRemoteCmd(cmd) {
-  var pcId = window._remoteControlPcId;
-  if (!pcId || !window._fbDb || !window.SHARED_PATH) return;
-  if (cmd === 'reload') usrReloadPc(pcId);
-  else if (cmd === 'synctimings') usrSendTimings(pcId);
-  else if (cmd === 'force_sync') {
-    window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').set({
-      cmd: 'force_sync', target: pcId, ts: Date.now(), by: _presencePcId
-    });
-  }
-}
-
-function usrRemoteSendMsg() {
-  var pcId = window._remoteControlPcId;
-  var inp = document.getElementById('remoteMsg');
-  if (!pcId || !inp || !inp.value.trim()) return;
-  usrSendMsg(pcId, '');
-  var msg = inp.value.trim();
-  inp.value = '';
-  if (!window._fbDb || !window.SHARED_PATH) return;
-  window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').set({
-    cmd: 'message', target: pcId, message: msg, ts: Date.now(), by: _presencePcId
-  });
-}
 
 
 // 2. Синхронизация таймингов на все ПК
@@ -10550,7 +10733,6 @@ window.addEventListener('AT_fb_ready', function() {
           setTimeout(function() { location.reload(); }, 800);
         } catch(e) {}
       } else if (cmd.cmd === 'force_sync') {
-        // Принудительная синхронизация всех RT данных
         try {
           if (typeof AT_rtLoadLocal === 'function') {
             ['tracking','zrating','boxes','filling','zayac','prev'].forEach(function(col) {
@@ -10559,10 +10741,498 @@ window.addEventListener('AT_fb_ready', function() {
           }
           logToDevConsole('🔄 Принудительная синхронизация данных (от ' + (cmd.by||'admin') + ')', 'info');
         } catch(e) {}
+      } else if (cmd.cmd === 'start_remote_publish') {
+        // Начинаем публиковать снапшот экрана для удалённого просмотра
+        logToDevConsole('📡 Удалённое управление: администратор подключился', 'info');
+        if (typeof _remoteStartPublishing === 'function') _remoteStartPublishing();
+        if (typeof _remoteStartCommandListener === 'function') _remoteStartCommandListener();
+      } else if (cmd.cmd === 'stop_remote_publish') {
+        // Останавливаем публикацию
+        logToDevConsole('📡 Удалённое управление: администратор отключился', 'info');
+        if (typeof _remoteStopPublishing === 'function') _remoteStopPublishing();
       }
     });
   }, 800);
 });
+
+// ══════════════════════════════════════════════════════════════════
+//  ASSISTANT — AI-ассистент для ArtemenkTools
+//  DeepSeek API + Yandex AI Studio
+//  Знает весь функционал сайта, выполняет команды
+// ══════════════════════════════════════════════════════════════════
+
+var _AT_ASST = {
+  // API ключи
+  deepseekKey: 'AQVN069ZFBSUwZ_mX7oGutycl5NWPRA_qTIwbENB',
+  yandexKeyId: 'ajeilrssghh10cci6rgo',
+  
+  // История диалога
+  messages: [],
+  
+  // Статус
+  isLoading: false,
+  
+  // Провайдер: 'deepseek' | 'yandex'
+  provider: 'deepseek',
+  
+  // Системный промпт — полное описание сайта для AI
+  systemPrompt: `Ты — ИИ-ассистент сайта ArtemenkTools (AT) — инструмента для работников склада Wildberries.
+Ты понимаешь весь функционал сайта и можешь управлять им через специальные команды.
+
+## ВКЛАДКИ САЙТА:
+- **search** (🔍 Декларация) — поиск и проверка ШК (штрихкодов/стикеров) товаров. Функции: проверить ШК без инфо, перепроверить выбранные. Показывает название товара, фото, статус.
+- **filling** (📦 Наполнение) — заполнение коробок товарами. Таблица товаров с фото/названиями.
+- **prev** (🛡️ Предотвращение) — предотвращение возвратов. Проверяет историю ШК на предмет возвратов.
+- **boxes** (📬 Коробки на входе) — учёт входящих коробок. Декларации, история штрихкодов, фильтрация.
+- **tracking** (📊 Трекинг ШК) — автоматическое отслеживание истории ШК. Добавляй ШК для мониторинга, задавай интервал проверки. Scope: все/только этот ПК/только мой профиль.
+- **qr** (🔲 QR-генератор) — генерация QR-кодов для коробок.
+- **trbx** (📤 TRBX) — работа с TRBX коробками.
+
+## КОНСОЛЬ РАЗРАБОТЧИКА (openDevConsole):
+Открывается кнопкой 🔧 в настройках. Вкладки:
+- **logs** — логи работы в реальном времени по каналам (search/filling/prev/boxes/tracking/decl)
+- **terminal** — выполнение JS команд напрямую
+- **timings** — настройка таймингов (задержек) всех операций. Можно менять для ускорения/замедления.
+- **export** — экспорт данных
+- **memory** — память сессий
+- **thanks** — статистика нажатий "Спасибо"
+- **announce** — объявления для всех пользователей
+- **users** — список пользователей онлайн + удалённое управление
+- **assistant** — (это я) AI-ассистент
+
+## ТАЙМИНГИ (Timings):
+Ключи таймингов и что они делают:
+- sticker_open_delay — задержка открытия страницы ШК (мс)
+- sticker_next_item — задержка перед следующим товаром (мс)
+- decl_open — задержка открытия декларации (мс)
+- decl_nav — навигация между декларациями (мс)
+- boxes_decl_open — открытие декларации коробки (мс)
+- boxes_count_rows_poll — опрос строк истории коробки (мс)
+- prev_next_item — задержка предотвращения между товарами (мс)
+- tracking_poll_interval — интервал трекинга (мс)
+
+## ПРОФИЛИ:
+Система профилей — каждый пользователь создаёт свой профиль с именем и аватаром.
+pfOpenManager() — открыть менеджер профилей
+pfLogout() — выйти из профиля
+
+## УДАЛЁННОЕ УПРАВЛЕНИЕ:
+В консоли → Пользователи → кнопка "Удалённое управление" рядом с пользователем.
+Позволяет видеть экран пользователя и управлять им.
+
+## ФУНКЦИИ КОТОРЫЕ ТЫ МОЖЕШЬ ВЫЗЫВАТЬ:
+Когда нужно выполнить действие — возвращай JSON с командой в конце ответа:
+\`\`\`action
+{"type": "switch_tab", "tab": "search"}
+\`\`\`
+или
+\`\`\`action
+{"type": "open_console", "tab": "timings"}
+\`\`\`
+или
+\`\`\`action
+{"type": "set_timing", "key": "sticker_next_item", "value": 800}
+\`\`\`
+или
+\`\`\`action
+{"type": "run_js", "code": "alert('hello')"}
+\`\`\`
+или
+\`\`\`action
+{"type": "navigate", "page": "boxes"}
+\`\`\`
+
+## СТИЛЬ ОТВЕТОВ:
+- Отвечай кратко и по делу
+- Для действий — сначала объясни что делаешь, потом выполни команду
+- Используй эмодзи для наглядности
+- Если не знаешь — честно скажи
+- Язык: русский`
+};
+
+function atAssistantOpen() {
+  // Open dev console on assistant tab
+  if (typeof openDevConsole === 'function') openDevConsole();
+  setTimeout(function() {
+    if (typeof devSwitchTab === 'function') devSwitchTab('assistant');
+  }, 100);
+}
+
+function atAssistantInit() {
+  // Initialize assistant panel
+  var inp = document.getElementById('atAsstInput');
+  if (inp && !inp.dataset.inited) {
+    inp.dataset.inited = '1';
+    inp.focus();
+  }
+  _atAsstUpdateStatus();
+}
+
+function _atAsstUpdateStatus() {
+  var el = document.getElementById('atAsstStatus');
+  if (!el) return;
+  el.textContent = 'Готов • ' + (_AT_ASST.provider === 'deepseek' ? 'DeepSeek' : 'Yandex AI') + 
+    ' • ' + _AT_ASST.messages.filter(function(m){return m.role==='user';}).length + ' сообщений';
+}
+
+function atAssistantClear() {
+  _AT_ASST.messages = [];
+  var msgs = document.getElementById('atAsstMessages');
+  if (msgs) msgs.innerHTML = '<div id="atAsstWelcome" style="text-align:center;padding:30px 20px;color:#9ca3af"><div style="font-size:40px;margin-bottom:12px">🤖</div><div style="font-size:14px;font-weight:700;color:var(--text,#374151);margin-bottom:8px">Ассистент ArtemenkTools</div><div style="font-size:12px;max-width:400px;margin:0 auto;line-height:1.6">Я знаю всё о сайте ArtemenkTools. Задайте вопрос!</div></div>';
+  _atAsstUpdateStatus();
+}
+
+function atAsstKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    atAsstSend();
+  }
+}
+
+function atAsstQuickAsk(text) {
+  var inp = document.getElementById('atAsstInput');
+  if (inp) { inp.value = text; inp.style.height = 'auto'; }
+  atAsstSend();
+}
+
+function _atAsstAddMsg(role, content, meta) {
+  var msgs = document.getElementById('atAsstMessages');
+  if (!msgs) return;
+  
+  // Remove welcome screen
+  var welcome = document.getElementById('atAsstWelcome');
+  if (welcome) welcome.remove();
+  
+  var isDark = document.body.classList.contains('dark');
+  var isUser = role === 'user';
+  var isError = meta && meta.error;
+  
+  var bg, textColor, align, borderRadius;
+  if (isUser) {
+    bg = 'linear-gradient(135deg,#06b6d4,#3b82f6)';
+    textColor = '#fff';
+    align = 'flex-end';
+    borderRadius = '14px 14px 4px 14px';
+  } else if (isError) {
+    bg = '#fff5f5';
+    textColor = '#ef4444';
+    align = 'flex-start';
+    borderRadius = '14px 14px 14px 4px';
+  } else {
+    bg = isDark ? '#1e1e2e' : '#f8f9fa';
+    textColor = isDark ? '#e2e8f0' : '#1a1a2e';
+    align = 'flex-start';
+    borderRadius = '14px 14px 14px 4px';
+  }
+  
+  // Parse markdown-like formatting in assistant messages
+  var htmlContent = content;
+  if (!isUser) {
+    // Bold
+    htmlContent = htmlContent.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+    // Italic
+    htmlContent = htmlContent.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+    // Code blocks - hide action blocks
+    htmlContent = htmlContent.replace(/```action[\s\S]*?```/g, '');
+    // Inline code
+    htmlContent = htmlContent.replace(/`([^`]+)`/g, '<code style="background:rgba(0,0,0,.1);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:12px">$1</code>');
+    // Line breaks
+    htmlContent = htmlContent.replace(/\n/g, '<br>');
+    // Lists
+    htmlContent = htmlContent.replace(/^- (.+)$/gm, '<li style="margin-left:16px">$1</li>');
+    htmlContent = htmlContent.replace(/^## (.+)$/gm, '<div style="font-weight:800;margin:8px 0 4px;font-size:13px">$1</div>');
+  } else {
+    // Escape HTML in user messages
+    htmlContent = htmlContent.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    htmlContent = htmlContent.replace(/\n/g, '<br>');
+  }
+  
+  var bubble = document.createElement('div');
+  bubble.style.cssText = 'display:flex;justify-content:' + align + ';animation:asstMsgIn .2s ease-out';
+  bubble.innerHTML = '<div style="max-width:80%;padding:10px 14px;border-radius:' + borderRadius + ';background:' + bg + ';color:' + textColor + ';font-size:13px;line-height:1.6;box-shadow:0 1px 4px rgba(0,0,0,.08)">' + htmlContent + '</div>';
+  msgs.appendChild(bubble);
+  msgs.scrollTop = msgs.scrollHeight;
+  
+  // Add CSS animation if not added
+  if (!document.getElementById('atAsstStyles')) {
+    var style = document.createElement('style');
+    style.id = 'atAsstStyles';
+    style.textContent = '@keyframes asstMsgIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}';
+    document.head.appendChild(style);
+  }
+}
+
+function _atAsstAddTyping() {
+  var msgs = document.getElementById('atAsstMessages');
+  if (!msgs) return;
+  var isDark = document.body.classList.contains('dark');
+  var el = document.createElement('div');
+  el.id = 'atAsstTyping';
+  el.style.cssText = 'display:flex;justify-content:flex-start;animation:asstMsgIn .2s ease-out';
+  el.innerHTML = '<div style="padding:10px 14px;border-radius:14px 14px 14px 4px;background:' + (isDark?'#1e1e2e':'#f0f4ff') + ';display:flex;align-items:center;gap:4px">' +
+    '<span style="width:6px;height:6px;background:#6366f1;border-radius:50%;animation:asstDot .8s ease-in-out infinite"></span>' +
+    '<span style="width:6px;height:6px;background:#6366f1;border-radius:50%;animation:asstDot .8s ease-in-out .2s infinite"></span>' +
+    '<span style="width:6px;height:6px;background:#6366f1;border-radius:50%;animation:asstDot .8s ease-in-out .4s infinite"></span>' +
+    '</div>';
+  msgs.appendChild(el);
+  msgs.scrollTop = msgs.scrollHeight;
+  
+  if (!document.getElementById('atAsstDotStyle')) {
+    var s = document.createElement('style');
+    s.id = 'atAsstDotStyle';
+    s.textContent = '@keyframes asstDot{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.2)}}';
+    document.head.appendChild(s);
+  }
+}
+
+function _atAsstRemoveTyping() {
+  var el = document.getElementById('atAsstTyping');
+  if (el) el.remove();
+}
+
+async function atAsstSend() {
+  if (_AT_ASST.isLoading) return;
+  
+  var inp = document.getElementById('atAsstInput');
+  var text = inp ? inp.value.trim() : '';
+  if (!text) return;
+  
+  // Clear input
+  inp.value = '';
+  inp.style.height = 'auto';
+  
+  // Add user message
+  _atAsstAddMsg('user', text);
+  _AT_ASST.messages.push({ role: 'user', content: text });
+  
+  // Show typing
+  _atAsstAddTyping();
+  _AT_ASST.isLoading = true;
+  
+  var statusEl = document.getElementById('atAsstStatus');
+  if (statusEl) statusEl.textContent = '⏳ Думаю...';
+  
+  try {
+    var reply = await _atAsstCallAPI(text);
+    _atAsstRemoveTyping();
+    
+    // Add assistant reply
+    _atAsstAddMsg('assistant', reply);
+    _AT_ASST.messages.push({ role: 'assistant', content: reply });
+    
+    // Execute any actions in the reply
+    _atAsstExecuteActions(reply);
+    
+  } catch(err) {
+    _atAsstRemoveTyping();
+    var errMsg = '❌ Ошибка API: ' + (err.message || String(err));
+    // Try fallback provider
+    if (_AT_ASST.provider === 'deepseek') {
+      _AT_ASST.provider = 'yandex';
+      try {
+        var reply2 = await _atAsstCallAPI(text);
+        _atAsstRemoveTyping();
+        _atAsstAddMsg('assistant', '*(переключился на Yandex AI)*\n\n' + reply2);
+        _AT_ASST.messages.push({ role: 'assistant', content: reply2 });
+        _atAsstExecuteActions(reply2);
+        _AT_ASST.provider = 'deepseek'; // reset
+      } catch(err2) {
+        _atAsstAddMsg('assistant', errMsg + '\n\nПопробуйте ещё раз или проверьте подключение к интернету.', {error: true});
+        _AT_ASST.provider = 'deepseek';
+      }
+    } else {
+      _atAsstAddMsg('assistant', errMsg, {error: true});
+    }
+  }
+  
+  _AT_ASST.isLoading = false;
+  _atAsstUpdateStatus();
+}
+
+async function _atAsstCallAPI(userText) {
+  // Build messages with system prompt
+  var msgs = [{ role: 'system', content: _AT_ASST.systemPrompt }];
+  
+  // Add context: current state
+  var stateCtx = _atAsstGetContext();
+  if (stateCtx) {
+    msgs.push({ role: 'system', content: 'ТЕКУЩЕЕ СОСТОЯНИЕ САЙТА:\n' + stateCtx });
+  }
+  
+  // Add conversation history (last 10 messages)
+  var hist = _AT_ASST.messages.slice(-10);
+  msgs = msgs.concat(hist);
+  
+  if (_AT_ASST.provider === 'deepseek') {
+    return await _atAsstDeepSeek(msgs);
+  } else {
+    return await _atAsstYandex(msgs);
+  }
+}
+
+function _atAsstGetContext() {
+  // Serialize current page state for AI context
+  var ctx = [];
+  ctx.push('Активная вкладка: ' + (typeof _presenceCurrentPage !== 'undefined' ? _presenceCurrentPage : '?'));
+  ctx.push('Профиль: ' + (typeof pfAttr === 'function' && pfAttr() ? pfAttr() : 'Гость'));
+  
+  if (typeof searchTableData !== 'undefined' && searchTableData && searchTableData.length) {
+    ctx.push('Декларация: ' + searchTableData.length + ' товаров загружено');
+  }
+  if (typeof prevDataset !== 'undefined' && prevDataset && prevDataset.length) {
+    ctx.push('Предотвращение: ' + prevDataset.length + ' товаров');
+  }
+  if (typeof boxesData !== 'undefined' && boxesData && boxesData.length) {
+    ctx.push('Коробки: ' + boxesData.length + ' коробок');
+  }
+  if (typeof trackingItems !== 'undefined' && trackingItems && trackingItems.length) {
+    ctx.push('Трекинг: ' + trackingItems.length + ' ШК отслеживается');
+  }
+  
+  // Timings summary
+  if (typeof DC_TIMINGS !== 'undefined') {
+    ctx.push('Некоторые тайминги: sticker_next_item=' + (DC_TIMINGS.sticker_next_item||'?') + 'мс, prev_next_item=' + (DC_TIMINGS.prev_next_item||'?') + 'мс');
+  }
+  
+  return ctx.join('\n');
+}
+
+async function _atAsstDeepSeek(messages) {
+  // DeepSeek использует OpenAI-совместимый API через Yandex Proxy
+  // Ключ: AQVN069ZFBSUwZ_mX7oGutycl5NWPRA_qTIwbENB
+  var response = await fetch('https://llm.api.cloud.yandex.net/foundationModels/v1/completion', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Api-Key ' + _AT_ASST.deepseekKey,
+      'x-folder-id': _AT_ASST.yandexKeyId
+    },
+    body: JSON.stringify({
+      modelUri: 'ds://v1:' + _AT_ASST.yandexKeyId + '/deepseek-r1',
+      completionOptions: { stream: false, temperature: 0.5, maxTokens: 2000 },
+      messages: messages.map(function(m) {
+        return { role: m.role === 'system' ? 'system' : (m.role === 'user' ? 'user' : 'assistant'), text: m.content };
+      })
+    })
+  });
+  
+  if (!response.ok) {
+    var errText = await response.text();
+    throw new Error('DeepSeek HTTP ' + response.status + ': ' + errText.slice(0, 200));
+  }
+  
+  var data = await response.json();
+  if (data.result && data.result.alternatives && data.result.alternatives[0]) {
+    return data.result.alternatives[0].message.text;
+  }
+  throw new Error('DeepSeek: unexpected response format');
+}
+
+async function _atAsstYandex(messages) {
+  // Yandex GPT через AI Studio
+  var response = await fetch('https://llm.api.cloud.yandex.net/foundationModels/v1/completion', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Api-Key ' + _AT_ASST.deepseekKey,
+      'x-folder-id': _AT_ASST.yandexKeyId
+    },
+    body: JSON.stringify({
+      modelUri: 'gpt://' + _AT_ASST.yandexKeyId + '/yandexgpt-lite',
+      completionOptions: { stream: false, temperature: 0.5, maxTokens: 2000 },
+      messages: messages.map(function(m) {
+        return { role: m.role === 'system' ? 'system' : (m.role === 'user' ? 'user' : 'assistant'), text: m.content };
+      })
+    })
+  });
+  
+  if (!response.ok) {
+    var errText = await response.text();
+    throw new Error('Yandex HTTP ' + response.status + ': ' + errText.slice(0, 200));
+  }
+  
+  var data = await response.json();
+  if (data.result && data.result.alternatives && data.result.alternatives[0]) {
+    return data.result.alternatives[0].message.text;
+  }
+  throw new Error('Yandex: unexpected response format');
+}
+
+function _atAsstExecuteActions(reply) {
+  // Find action blocks in AI response
+  var actionMatch = reply.match(/```action\s*([\s\S]*?)```/);
+  if (!actionMatch) return;
+  
+  try {
+    var action = JSON.parse(actionMatch[1].trim());
+    console.log('🤖 Assistant action:', action);
+    
+    if (action.type === 'switch_tab') {
+      // Переключить вкладку на сайте
+      if (typeof floatSwitchTab === 'function') {
+        setTimeout(function() { floatSwitchTab(action.tab); }, 300);
+        logToDevConsole('🤖 Ассистент: переключил вкладку на ' + action.tab, 'info');
+      }
+    } else if (action.type === 'navigate') {
+      if (typeof nav === 'function') {
+        setTimeout(function() { nav(action.page); }, 300);
+      }
+    } else if (action.type === 'open_console') {
+      if (typeof openDevConsole === 'function') openDevConsole();
+      if (action.tab && typeof devSwitchTab === 'function') {
+        setTimeout(function() { devSwitchTab(action.tab); }, 200);
+      }
+    } else if (action.type === 'set_timing') {
+      if (action.key && action.value !== undefined && typeof DC_TIMINGS !== 'undefined') {
+        var oldVal = DC_TIMINGS[action.key];
+        DC_TIMINGS[action.key] = Number(action.value);
+        if (typeof DC_LOCAL_TIMINGS !== 'undefined') DC_LOCAL_TIMINGS[action.key] = Number(action.value);
+        try { localStorage.setItem('at_timings_local', JSON.stringify(DC_LOCAL_TIMINGS)); } catch(e) {}
+        logToDevConsole('🤖 Ассистент: ' + action.key + ' изменён ' + oldVal + ' → ' + action.value + 'мс', 'success');
+        // Refresh timings UI if open
+        if (typeof dcRenderTimings === 'function') { try { dcRenderTimings(); } catch(e) {} }
+      }
+    } else if (action.type === 'run_js') {
+      try { eval(action.code); } catch(e) { console.warn('Assistant JS error:', e); }
+    } else if (action.type === 'show_message') {
+      logToDevConsole('🤖 ' + (action.text || ''), 'info');
+    }
+  } catch(e) {
+    console.warn('Assistant action parse error:', e, actionMatch[1]);
+  }
+}
+
+function atFloatAsstSend() {
+  var inp = document.getElementById('floatAsstInput');
+  if (!inp || !inp.value.trim()) return;
+  var text = inp.value.trim();
+  inp.value = '';
+  
+  // Mirror to main messages div if it exists
+  var mainInp = document.getElementById('atAsstInput');
+  if (mainInp) mainInp.value = text;
+  
+  // Use the main assistant
+  atAsstQuickAsk(text);
+  
+  // Also show in float panel
+  var msgs = document.getElementById('floatAsstMessages');
+  if (msgs) {
+    msgs.innerHTML += '<div style="margin-bottom:8px"><div style="color:#3b82f6;font-size:11px;font-weight:700;margin-bottom:2px">Вы:</div><div style="color:#e6edf3;font-size:12px">'+text+'</div></div>';
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+}
+
+// Quick access function
+function atAssistantAsk(text) {
+  atAssistantOpen();
+  setTimeout(function() {
+    var inp = document.getElementById('atAsstInput');
+    if (inp) { inp.value = text; atAsstSend(); }
+  }, 300);
+}
+
+
 
 // Обновляем presence при навигации — перехватываем nav()
 var _origNav = window.nav;
@@ -12751,18 +13421,22 @@ function boxesRecheckExisting() {
 
 // BOXES_DECL_INFO: declaration found for box
 function boxesOnDeclInfo(boxIndex, shksRaw, boxId) {
-	var b, realIdx = boxIndex;
-	// Всегда используем boxIndex — индекс запрошенной коробки (не перебрасываем по boxId)
-	b = boxesData[boxIndex];
-	if (!b && boxId) {
-		// Fallback: поиск по boxId только если boxIndex не нашёл коробку
+	var b, realIdx = -1;
+	// Приоритет: ищем по boxId (стабильный идентификатор коробки)
+	// boxIndex может быть устаревшим если массив изменился во время проверки
+	if (boxId) {
 		var cleanId = String(boxId).replace(/^(WCT|TRBX)/i,'');
 		var fi = boxesData.findIndex(function(bd){
 			return bd.box===boxId || String(bd.box).replace(/^(WCT|TRBX)/i,'')===cleanId;
 		});
 		if (fi >= 0) { b = boxesData[fi]; realIdx = fi; }
 	}
-	if (!b) return;
+	// Fallback по boxIndex если по ID не нашли
+	if (!b && boxIndex >= 0 && boxIndex < boxesData.length) {
+		b = boxesData[boxIndex];
+		realIdx = boxIndex;
+	}
+	if (!b) { console.warn('boxesOnDeclInfo: коробка не найдена, boxId=', boxId, 'boxIndex=', boxIndex); return; }
 	b.shks = (shksRaw || []).map(function(s) {
 		var wbId = s.wbsticker_id || s;
 		return {
@@ -12785,9 +13459,16 @@ function boxesOnDeclInfo(boxIndex, shksRaw, boxId) {
 // Only boxes that passed history check get blacklisted (in boxesOnHistComplete)
 function boxesOnDeclError(boxIndex, box, windowClosed) {
 	if (windowClosed) {
-		// Window closed by user — keep box in table, re-check when user runs again
 		boxesRenderTable();
 		return;
+	}
+	// Найти правильный индекс по box ID (не по позиции)
+	if (box) {
+		var cleanB = String(box).replace(/^(WCT|TRBX)/i,'');
+		var fib = boxesData.findIndex(function(bd){
+			return bd.box===box || String(bd.box).replace(/^(WCT|TRBX)/i,'')===cleanB;
+		});
+		if (fib >= 0) boxIndex = fib;
 	}
 	// Remove from boxesData — but do NOT add to boxesRemovedBoxes
 	// (box may get a declaration later; only history-checked removal is permanent)
@@ -15655,8 +16336,22 @@ function closeFloatingConsole() {
     <button onclick="floatSwitchTab('users')" id="floatTab_users" style="display:none;align-items:center;gap:4px;padding:7px 12px;border:none;background:none;cursor:pointer;font-size:11px;font-weight:600;color:#8b949e;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s">
       👥 Пользователи
     </button>
+    <button onclick="floatSwitchTab('assistant')" id="floatTab_assistant" style="display:inline-flex;align-items:center;gap:4px;padding:7px 12px;border:none;background:none;cursor:pointer;font-size:11px;font-weight:600;color:#8b949e;border-bottom:2px solid transparent;white-space:nowrap;transition:all 0.15s">
+      🤖 Ассистент
+    </button>
   </div>
 
+  <!-- Float panel: ASSISTANT -->
+  <div id="floatPanel_assistant" style="display:none;flex:1;overflow:hidden;flex-direction:column">
+    <div style="flex:1;overflow-y:auto;padding:10px" id="floatAsstMessages"></div>
+    <div style="border-top:1px solid var(--border,#333);padding:8px;display:flex;gap:6px;background:var(--bg2,#161b22)">
+      <input id="floatAsstInput" placeholder="Спросите ассистента..." 
+        style="flex:1;padding:6px 10px;border:1px solid #333;border-radius:6px;background:#0d1117;color:#e6edf3;font-size:12px"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();atFloatAsstSend()}">
+      <button onclick="atFloatAsstSend()" style="padding:6px 12px;background:#3b82f6;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">▶</button>
+    </div>
+  </div>
+  
   <!-- Float panel: LOGS -->
   <div id="floatPanel_logs" style="flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0">
     <div id="floatLogChannelBar" style="flex-shrink:0;display:flex;gap:0;overflow-x:auto;scrollbar-width:none;background:#161b22;border-bottom:1px solid #21262d"></div>
@@ -15829,7 +16524,7 @@ function floatSwitchTab(tab) {
     if (tab !== 'logs' && tab !== 'timings') return;
   }
   _floatActiveTab = tab;
-  ['logs','terminal','timings','export','thanks','announce','memory','users'].forEach(function(t) {
+  ['logs','terminal','timings','export','thanks','announce','memory','users','assistant'].forEach(function(t) {
     var panel = document.getElementById('floatPanel_'+t);
     var btn   = document.getElementById('floatTab_'+t);
     if (!panel) return;
@@ -16087,6 +16782,60 @@ function syncFloatingConsole() {
 
 </script>
 
+
+<!-- ══ PANEL: ASSISTANT ══ -->
+<div id="dcPanel_assistant" style="display:none;flex-direction:column;flex:1;overflow:hidden;min-height:0">
+  <!-- Assistant header -->
+  <div style="flex-shrink:0;padding:14px 20px;border-bottom:1px solid var(--border,#e5e7eb);background:var(--bg2,#fafafa)">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="width:36px;height:36px;background:linear-gradient(135deg,#06b6d4,#3b82f6);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0">🤖</div>
+      <div>
+        <div style="font-size:14px;font-weight:800;color:var(--text,#111)">Ассистент ArtemenkTools</div>
+        <div style="font-size:11px;color:#9ca3af" id="atAsstStatus">Готов к работе • Powered by DeepSeek + Yandex AI</div>
+      </div>
+      <div style="flex:1"></div>
+      <button onclick="atAssistantClear()" style="padding:5px 12px;background:none;border:1.5px solid #e5e7eb;border-radius:6px;cursor:pointer;font-size:12px;color:#6b7280" title="Очистить диалог">🗑️ Очистить</button>
+    </div>
+  </div>
+  
+  <!-- Chat messages -->
+  <div id="atAsstMessages" style="flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:10px">
+    <!-- Messages inserted here -->
+    <div id="atAsstWelcome" style="text-align:center;padding:30px 20px;color:#9ca3af">
+      <div style="font-size:40px;margin-bottom:12px">🤖</div>
+      <div style="font-size:14px;font-weight:700;color:var(--text,#374151);margin-bottom:8px">Ассистент ArtemenkTools</div>
+      <div style="font-size:12px;max-width:400px;margin:0 auto;line-height:1.6">
+        Я знаю всё о сайте ArtemenkTools. Могу помочь настроить тайминги, объяснить работу вкладок, переключить вкладки, изменить настройки. Задайте вопрос!
+      </div>
+      <div style="margin-top:14px;display:flex;flex-wrap:wrap;gap:6px;justify-content:center">
+        <button onclick="atAsstQuickAsk('Как работает вкладка Декларация?')" style="padding:6px 12px;background:#eff6ff;color:#3b82f6;border:1px solid #bfdbfe;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600">🔍 Декларация</button>
+        <button onclick="atAsstQuickAsk('Что делает вкладка Коробки?')" style="padding:6px 12px;background:#f0fdf4;color:#16a34a;border:1px solid #bbf7d0;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600">📬 Коробки</button>
+        <button onclick="atAsstQuickAsk('Как настроить тайминги?')" style="padding:6px 12px;background:#fefce8;color:#d97706;border:1px solid #fde68a;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600">⏱️ Тайминги</button>
+        <button onclick="atAsstQuickAsk('Как работает удалённое управление пользователями?')" style="padding:6px 12px;background:#faf5ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600">🖥️ Пользователи</button>
+        <button onclick="atAsstQuickAsk('Открой вкладку Трекинг')" style="padding:6px 12px;background:#fff7ed;color:#ea580c;border:1px solid #fed7aa;border-radius:20px;cursor:pointer;font-size:12px;font-weight:600">📊 Трекинг</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Input area -->
+  <div style="flex-shrink:0;padding:12px 16px;border-top:1.5px solid var(--border,#e5e7eb);background:var(--bg2,#fafafa)">
+    <div style="display:flex;gap:8px;align-items:flex-end">
+      <textarea id="atAsstInput" 
+        placeholder="Спросите что-нибудь об ArtemenkTools... (Enter — отправить, Shift+Enter — новая строка)"
+        style="flex:1;resize:none;min-height:44px;max-height:120px;padding:10px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:13px;font-family:inherit;background:var(--bg,#fff);color:var(--text,#111);outline:none;line-height:1.5;overflow-y:auto"
+        rows="1"
+        onkeydown="atAsstKeydown(event)"
+        oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,120)+'px'"></textarea>
+      <button id="atAsstSendBtn" onclick="atAsstSend()" 
+        style="width:44px;height:44px;background:linear-gradient(135deg,#06b6d4,#3b82f6);color:#fff;border:none;border-radius:10px;cursor:pointer;font-size:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+      </button>
+    </div>
+    <div style="font-size:10px;color:#9ca3af;margin-top:6px;text-align:center">
+      Ассистент может выполнять действия на сайте: переключать вкладки, изменять настройки, объяснять функционал
+    </div>
+  </div>
+</div>
 
 <!-- ══ ANNOUNCE BANNER ══ -->
 <div id="atAnnounceBanner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9990;padding:12px 20px;background:linear-gradient(135deg,#5a67d8,#764ba2);color:#fff;font-size:14px;font-weight:600;box-shadow:0 -3px 16px rgba(99,102,241,0.5);min-height:48px;align-items:center;word-break:break-word;gap:8px"></div>
