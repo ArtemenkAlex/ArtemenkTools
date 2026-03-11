@@ -11129,18 +11129,13 @@ async function atAsstSend() {
       _atAsstShowApiKeyPrompt();
     } else if (errMsg === 'CORS_BLOCKED' || errMsg.includes('CORS') || errMsg.includes('Failed to fetch') || errMsg.includes('NetworkError')) {
       // Yandex CORS заблокирован — предложить альтернативу
-      _atAsstAddMsg('assistant', 
-        '⚠️ Yandex AI недоступен из браузера (CORS ограничение).
-
-' +
-        '**Решение:** Введите бесплатный ключ от одного из сервисов:
-' +
-        '• [**Groq**](https://console.groq.com) — очень быстрый, бесплатно, ключ `gsk_...`
-' +
-        '• [**Google Gemini**](https://aistudio.google.com/app/apikey) — бесплатно, ключ `AIza...`
-
-' +
-        'Нажмите кнопку **⚙️ API ключ** и вставьте ключ.', {error: true});
+      _atAsstAddMsg('assistant',
+        '⚠️ Yandex AI недоступен из браузера (CORS ограничение).\n\n' +
+        '**Решение:** Введите бесплатный ключ от одного из сервисов:\n' +
+        '• [**Groq**](https://console.groq.com) — очень быстрый, бесплатно, ключ `gsk_...`\n' +
+        '• [**Google Gemini**](https://aistudio.google.com/app/apikey) — бесплатно, ключ `AIza...`\n\n' +
+        'Нажмите кнопку **⚙️ API ключ** и вставьте ключ.',
+        {error: true});
       setTimeout(atAsstShowApiKeyPrompt, 800);
     } else {
       _atAsstAddMsg('assistant', '❌ Ошибка: ' + errMsg, {error: true});
