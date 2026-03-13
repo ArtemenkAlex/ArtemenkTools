@@ -10129,11 +10129,13 @@ var _remotePublishPcId = null;
 
 function _remoteStartPublishing() {
   if (_remotePublishInterval) return;
-  // Публикуем сразу + каждые 2 секунды
+  // Публикуем сразу + каждую секунду для плавного обновления
   _remoteDoPublish();
-  _remotePublishInterval = setInterval(_remoteDoPublish, 1500);
-  window.addEventListener('click', _remoteDoPublish);
-  window.addEventListener('keyup', _remoteDoPublish);
+  _remotePublishInterval = setInterval(_remoteDoPublish, 1000);
+  // Также публикуем мгновенно при активности пользователя
+  ['click','keyup','input','change','scroll'].forEach(function(ev) {
+    window.addEventListener(ev, _remoteDoPublish, {passive: true});
+  });
 }
 
 function _remoteStopPublishing() {
@@ -10141,8 +10143,9 @@ function _remoteStopPublishing() {
     clearInterval(_remotePublishInterval);
     _remotePublishInterval = null;
   }
-  window.removeEventListener('click', _remoteDoPublish);
-  window.removeEventListener('keyup', _remoteDoPublish);
+  ['click','keyup','input','change','scroll'].forEach(function(ev) {
+    window.removeEventListener(ev, _remoteDoPublish);
+  });
   if (window._fbDb && window.SHARED_PATH && _presencePcId) {
     try { window._fbDb.ref(window.SHARED_PATH + '/remote_screen/' + _presencePcId).remove(); } catch(e) {}
   }
@@ -10150,40 +10153,52 @@ function _remoteStopPublishing() {
 
 function _remoteDoPublish() {
   if (!window._fbDb || !window.SHARED_PATH || !_presencePcId) return;
+  // Дебаунс: не более 1 публикации в 800мс
+  var now = Date.now();
+  if (_remoteLastPublish && now - _remoteLastPublish < 800) return;
+  _remoteLastPublish = now;
+  
   try {
-    // Найти активную вкладку/панель
-    var mainEl = null;
-    // Попробуем найти видимую панель (tab content)
-    var panels = document.querySelectorAll('[id^="panel_"], [id^="dcPanel_"], .tabPanel, .tab-content');
-    for (var pi = 0; pi < panels.length; pi++) {
-      var ps = panels[pi].style;
-      if (ps.display !== 'none' && ps.visibility !== 'hidden') {
-        mainEl = panels[pi]; break;
-      }
-    }
-    if (!mainEl) mainEl = document.getElementById('app') || document.getElementById('root') || document.body;
+    // Снимаем ВЕСЬ body — так пользователь видит реальный экран
+    // Исключаем модальные окна (dev console, remote modal) — они не нужны зрителю
+    var clone = document.body.cloneNode(true);
     
-    // Клонируем, убираем скрипты и чувствительные данные
-    var clone = mainEl.cloneNode(true);
-    clone.querySelectorAll('script, noscript').forEach(function(s) { s.remove(); });
-    clone.querySelectorAll('input[type="password"]').forEach(function(i) { i.value = ''; i.setAttribute('value',''); });
-    // Убираем большие base64 изображения для уменьшения размера
-    clone.querySelectorAll('img[src^="data:"]').forEach(function(img) {
-      img.src = ''; img.style.background = '#e5e7eb'; img.style.width = img.style.width || '40px'; img.style.height = img.style.height || '40px';
+    // Убираем элементы которые не нужны зрителю / мешают рендеру
+    clone.querySelectorAll('script, noscript, style').forEach(function(s) { s.remove(); });
+    clone.querySelectorAll('input[type="password"]').forEach(function(inp) {
+      inp.value = ''; inp.setAttribute('value','');
     });
+    // Убираем base64 изображения (экономим размер)
+    clone.querySelectorAll('img[src^="data:"]').forEach(function(img) {
+      img.removeAttribute('src');
+      img.style.cssText += ';background:#e5e7eb;min-width:32px;min-height:32px';
+    });
+    // Убираем dev console и remote modal чтобы не засорять вид
+    ['devConsoleModal','usrRemoteModal','assistantModal'].forEach(function(id) {
+      var el = clone.querySelector('#' + id);
+      if (el) el.remove();
+    });
+    // Убираем плавающую консоль
+    var floatConsole = clone.querySelector('#floatConsole');
+    if (floatConsole) floatConsole.style.display = 'none';
     
     var htmlSnap = clone.outerHTML;
     
-    // Ограничение Firebase: ~1MB. Сжимаем или обрезаем
-    if (htmlSnap.length > 800000) {
-      htmlSnap = htmlSnap.slice(0, 800000) + '</div></div><!-- TRUNCATED -->';
+    // Firebase limit ~1MB — truncate if needed
+    if (htmlSnap.length > 900000) {
+      htmlSnap = htmlSnap.slice(0, 900000) + '<!-- TRUNCATED -->';
     }
+    
+    // Также записываем текущую вкладку/страницу для статуса
+    var curPage = typeof _presenceCurrentPage !== 'undefined' ? _presenceCurrentPage : '';
     
     window._fbDb.ref(window.SHARED_PATH + '/remote_screen/' + _presencePcId).set({
       html: htmlSnap,
       ts: Date.now(),
       pcId: _presencePcId,
-      compressed: false
+      page: curPage,
+      w: window.innerWidth,
+      h: window.innerHeight
     });
   } catch(e) { console.warn('Remote publish error:', e); }
 }
@@ -10206,7 +10221,9 @@ function _remoteStartCommandListener() {
     
     try {
       if (cmd.cmd === 'switch_tab' && cmd.tab) {
-        if (typeof floatSwitchTab === 'function') floatSwitchTab(cmd.tab);
+        // nav() переключает ОСНОВНУЮ навигацию сайта
+        if (typeof nav === 'function') nav(cmd.tab);
+        else if (typeof floatSwitchTab === 'function') floatSwitchTab(cmd.tab);
         _presenceSetPage(cmd.tab);
       } else if (cmd.cmd === 'js' && cmd.code) {
         // Выполняем произвольный JS (только от доверенного админа)
@@ -10239,6 +10256,7 @@ function _remoteStartCommandListener() {
 }
 
 // --- VIEWER: панель просмотра и управления ---
+var _remoteLastPublish = 0; // debounce timestamp
 var _remoteWatchUnsubscribe = null;
 var _remoteViewerPcId = null;
 var _remoteViewerScreenRef = null;
@@ -10378,61 +10396,66 @@ function _rcUpdateScreen(data) {
   if (!frame) return;
   
   var html = data.html;
-  
-  // Decompress if needed
-  if (data.compressed && typeof LZString !== 'undefined') {
-    try { html = LZString.decompressFromUTF16(html); } catch(e) {}
-  }
-  
   if (!html) return;
   
-  // Calculate FPS
+  // Calculate update rate
   var now = Date.now();
   if (_rcScreenTs > 0) {
     var dt = now - _rcScreenTs;
-    if (fpsEl) fpsEl.textContent = Math.round(1000/dt) + ' fps';
+    if (fpsEl) fpsEl.textContent = (dt < 2000 ? Math.round(1000/dt) + ' fps' : Math.round(dt/1000) + 's');
   }
   _rcScreenTs = now;
   
-  // Build complete HTML document for iframe
+  // Remote screen dimensions for scaling
+  var remoteW = data.w || 1280;
+  var remoteH = data.h || 800;
+  
+  // Build complete HTML document — disable all interactions, scale to fit
   var doc = '<!DOCTYPE html><html><head>' +
     '<meta charset="UTF-8">' +
-    '<meta name="viewport" content="width=device-width, initial-scale=1">' +
     '<style>' +
-    '* { pointer-events: none !important; user-select: none !important; box-sizing: border-box; }' +
-    'body { margin: 0; padding: 8px; overflow: auto; background: #f8f9fa; font-family: -apple-system, sans-serif; }' +
-    '::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }' +
-    'img { max-width: 100%; }' +
-    'button, input, select, textarea { pointer-events: none !important; opacity: 0.85; }' +
+    'html,body{margin:0;padding:0;overflow:hidden;background:#f0f0f0}' +
+    // Wrap content to scale
+    '#_rc_wrap{transform-origin:top left;width:' + remoteW + 'px}' +
+    // Disable all interactions
+    '*{pointer-events:none!important;user-select:none!important}' +
+    // Hide scrollbars, modals, floating elements
+    '::-webkit-scrollbar{display:none}' +
+    // Fix images
+    'img{max-width:100%}' +
     '</style>' +
+    '<script>' +
+    // Auto-scale to fit viewer window
+    'window.onload=function(){' +
+    '  var wrap=document.getElementById("_rc_wrap");' +
+    '  if(!wrap)return;' +
+    '  var scale=window.innerWidth/' + remoteW + ';' +
+    '  wrap.style.transform="scale("+scale+")";' +
+    '  document.body.style.height=Math.round(' + remoteH + '*scale)+"px";' +
+    '};' +
+    'window.onresize=window.onload;' +
+    '<\/script>' +
     '</head>' +
-    '<body>' + html + '</body></html>';
+    '<body><div id="_rc_wrap">' + html + '</div></body></html>';
   
-  // Update iframe via srcdoc (no CORS issues, no injected.js loading)
-  try {
-    frame.srcdoc = doc;
-  } catch(e) {
-    // Fallback: blob URL
-    try {
-      var blob = new Blob([doc], { type: 'text/html' });
-      var url = URL.createObjectURL(blob);
-      var oldSrc = frame.getAttribute('data-blob-url');
-      frame.src = url;
-      if (oldSrc) setTimeout(function(){ URL.revokeObjectURL(oldSrc); }, 2000);
-      frame.setAttribute('data-blob-url', url);
-    } catch(e2) {}
-  }
+  // Update via srcdoc
+  frame.srcdoc = doc;
   
   // Show frame, hide overlay
   frame.style.display = 'block';
   if (overlay) overlay.style.display = 'none';
+  
+  // Update status
+  var lag = Math.round((Date.now() - data.ts) / 1000);
   if (tsEl) {
     tsEl.style.display = 'block';
-    tsEl.textContent = '🟢 ' + new Date(data.ts).toLocaleTimeString('ru-RU') + ' (' + Math.round((Date.now()-data.ts)/1000) + 's назад)';
+    var lagStr = lag < 2 ? '🟢' : lag < 5 ? '🟡' : '🔴';
+    tsEl.textContent = lagStr + ' ' + new Date(data.ts).toLocaleTimeString('ru-RU') +
+      (data.page ? ' · ' + data.page : '') + ' (' + lag + 'с)';
   }
   if (statusEl) {
-    statusEl.textContent = '🟢 активен';
-    statusEl.style.background = 'rgba(34,197,94,.25)';
+    statusEl.textContent = lag < 5 ? '🟢 онлайн' : '🟡 ' + lag + 'с назад';
+    statusEl.style.background = lag < 5 ? 'rgba(34,197,94,.25)' : 'rgba(234,179,8,.25)';
   }
 }
 
@@ -10670,7 +10693,9 @@ window.addEventListener('AT_fb_ready', function() {
     window._fbDb.ref(window.SHARED_PATH + '/admin_cmd').on('value', function(snap) {
       var cmd = snap.val();
       if (!cmd || !cmd.ts || cmd.ts <= lastCmdTs) return;
-      if (cmd.by === _presencePcId) return; // игнорируем свои команды
+      // Игнорируем свои команды КРОМЕ remote control (admin может смотреть свой ПК)
+      var isRemoteCmd = (cmd.cmd === 'start_remote_publish' || cmd.cmd === 'stop_remote_publish');
+      if (cmd.by === _presencePcId && !isRemoteCmd) return;
       lastCmdTs = cmd.ts;
       var isForMe = (cmd.target === 'all' || cmd.target === _presencePcId);
       if (!isForMe) return;
@@ -10757,6 +10782,12 @@ window.nav = function(page) {
   _presenceCurrentAction = 'Ожидание';
   if (typeof _origNav === 'function') _origNav(page);
   setTimeout(_presenceWrite, 100);
+  // Публикуем снапшот после навигации (если активен remote)
+  if (_remotePublishInterval) {
+    setTimeout(_remoteDoPublish, 300);
+    setTimeout(_remoteDoPublish, 800);
+    setTimeout(_remoteDoPublish, 1500);
+  }
 };
 
 // Обновляем при открытии вкладки users
